@@ -7,8 +7,8 @@ import os.path
 
 ## User Options ######################################################
 # Your CK2 install directory:
-ck2_install_dir = r'C:\Program Files (x86)\Steam\steamapps\common\Crusader Kings II'
-#ck2_install_dir = r'/home/ruth/.local/share/Steam/steamapps/common/Crusader Kings II'
+#ck2_install_dir = r'C:\Program Files (x86)\Steam\steamapps\common\Crusader Kings II'
+ck2_install_dir = r'/home/ruth/.local/share/Steam/steamapps/common/Crusader Kings II'
 # Your mod directory where mods get installed:
 mod_dir = r'C:\Users\User\Documents\Paradox Interactive\Crusader Kings II\mod'
 #mod_dir = r'/home/ruth/.paradoxinteractive/Crusader Kings II/mod'
@@ -378,6 +378,7 @@ def parse_ck2_data(string, is_save = False, empty_values = False):
     chars_until_progress -= 1
     if chars_until_progress == 0:
       sys.stdout.write('=')
+      sys.stdout.flush()
       chars_until_progress = chars_per_increment
 
     if x == '\n':
@@ -851,6 +852,7 @@ def read_save(filename, dynasty_map):
           character.title_history.primary_set = True
           
       if not generate_titles and keys[0] == 'delayed_event':
+        print ''
         break
           
       if len(keys) >= 2 and keys[0] == 'title':
@@ -1249,7 +1251,7 @@ def main():
     sys.exit()
     
   if not os.path.exists(mod_dir):
-    print 'Did not find mod directory.  No mods will not be loaded.'
+    print 'Did not find mod directory.  No mods will be loaded.'
 
   ## Get Information from User #########################################
   print 'Enter the name of the save file without extension: ',
@@ -1394,6 +1396,7 @@ def main():
     print ' # Error reading file. #'
     print ' #######################'
     print ''
+    raise
     sys.exit ()
     
   print '### Finished reading save file. ###'
