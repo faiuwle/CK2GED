@@ -1,9 +1,9 @@
-ck2\_ged for Crusader Kings II
+ck2\_ged for Crusader Kings II    
 
-Requires:         Crusader Kings II
-                  Python (2.7)
-Utility version:  2017.07.31
-Readme version:   2017.08.01
+    Requires:         Crusader Kings II    
+                  Python (2.7)    
+    Utility version:  2017.07.31    
+    Readme version:   2017.08.01    
 
 ----------------------------------------------------------------------
 Description:
@@ -15,10 +15,9 @@ relations occuring within their game.
 
 Can also produce .csv files for dynasties, characters, and families.
 
-GEDCOM can be read by family tree software, or the free site familyecho.com.
-
 ----------------------------------------------------------------------
 Instructions:
+
 Place copies of the following files into the same directory:
   - ck2\_ged.py
   - The .ck2 file you wish to convert
