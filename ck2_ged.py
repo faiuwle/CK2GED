@@ -7,11 +7,9 @@ import os.path
 
 ## User Options ######################################################
 # Your CK2 install directory:
-#ck2_install_dir = r'C:\Program Files (x86)\Steam\steamapps\common\Crusader Kings II'
-ck2_install_dir = r'/home/ruth/.local/share/Steam/steamapps/common/Crusader Kings II'
+ck2_install_dir = r'C:\Program Files (x86)\Steam\steamapps\common\Crusader Kings II'
 # Your mod directory where mods get installed:
 mod_dir = r'C:\Users\User\Documents\Paradox Interactive\Crusader Kings II\mod'
-#mod_dir = r'/home/ruth/.paradoxinteractive/Crusader Kings II/mod'
 # Remove characters with no family? (Mainly only has an effect if you generate the entire tree)
 cull_loners = True
 # Remove otherwise unrelated spouses that produced no children?
@@ -145,7 +143,7 @@ class Title(object):
     self.name = ''
     self.cultural_names = {}
     self.rank = NONE
-    self.rank_name = ['', '']
+    self.rank_name = [None, None]
     self.viceroyalty = False
     self.independent = True
     self.religious_head = False
@@ -191,7 +189,7 @@ class TitleHistory(object):
           rank = VICEDUKE
         if rank == KING:
           rank = VICEKING
-      if p.rank_name[self.gender] == '':
+      if p.rank_name[self.gender] is None:
         s = get_rank(rank_names, rank, self.government, cul_rel, self.gender) + ' ' + self.name
       else:
         s = p.rank_name[self.gender] + ' ' + self.name
@@ -251,7 +249,7 @@ class TitleHistory(object):
             rank = VICEDUKE
           if rank == KING:
             rank = VICEKING
-        if t.rank_name[self.gender] == '':
+        if t.rank_name[self.gender] is None:
           s = get_rank(rank_names, rank, self.government, cul_rel, self.gender) + ' of '
         else:
           s = t.rank_name[self.gender] + ' of '
@@ -378,7 +376,6 @@ def parse_ck2_data(string, is_save = False, empty_values = False):
     chars_until_progress -= 1
     if chars_until_progress == 0:
       sys.stdout.write('=')
-      sys.stdout.flush()
       chars_until_progress = chars_per_increment
 
     if x == '\n':
@@ -812,6 +809,9 @@ def read_save(filename, dynasty_map):
             character.regnal_name = value
         elif keys[2] == 'name':
           character.regnal_name = value
+        elif keys[2] == 'nick':
+          character.nickname = value
+          nicknames.append(value)
         elif keys[2] == 'b_d':
           character.birthday = parse_date(value)
         elif keys[2] == 'd_d':
@@ -852,10 +852,12 @@ def read_save(filename, dynasty_map):
           character.title_history.primary_set = True
           
       if not generate_titles and keys[0] == 'delayed_event':
-        print ''
         break
           
       if len(keys) >= 2 and keys[0] == 'title':
+        if '_dyn_reb_' in keys[1]:
+           continue
+      
         if keys[1] not in title_map:
           rank = NONE
           if keys[1].startswith('e_'):
@@ -873,6 +875,12 @@ def read_save(filename, dynasty_map):
           title_map[keys[1]].name = guess_title_name(keys[1])
           title_map[keys[1]].rank = rank
           
+        if keys[2] == 'name':
+          title_map[keys[1]].name = value
+          
+        if 'd_dyn_' in keys[1]:
+          title_map[keys[1]].rank_name = ['', '']
+          
         if len(keys) == 3 and keys[1].startswith('b_') and not keys[1].startswith('b_dyn_') and keys[2] == 'holder' and is_integer(value):
           character_map[int(value)].title_history.add_title(title_map[keys[1]], Range(Date(), Date()), True)
           
@@ -882,6 +890,12 @@ def read_save(filename, dynasty_map):
             dynasty_id = character_map[int(founder_id)].dynasty_id
             title_map[keys[1]].name = 'House ' + dynasty_map[dynasty_id].name
             title_map[keys[1]].rank_name[1] = 'Patrician'
+            
+        if keys[1].startswith('k_dyn_'):
+          founder_id = keys[1].split('_')[-1]
+          if is_integer(founder_id):
+            dynasty_id = character_map[int(founder_id)].dynasty_id
+            title_map[keys[1]].name = dynasty_map[dynasty_id].name + ' Clan'
             
         if keys[2] == 'liege':
           title_map[keys[1]].independent = False
@@ -1251,7 +1265,7 @@ def main():
     sys.exit()
     
   if not os.path.exists(mod_dir):
-    print 'Did not find mod directory.  No mods will be loaded.'
+    print 'Did not find mod directory.  No mods will not be loaded.'
 
   ## Get Information from User #########################################
   print 'Enter the name of the save file without extension: ',
@@ -1396,7 +1410,6 @@ def main():
     print ' # Error reading file. #'
     print ' #######################'
     print ''
-    raise
     sys.exit ()
     
   print '### Finished reading save file. ###'
