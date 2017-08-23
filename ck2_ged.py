@@ -376,6 +376,7 @@ def parse_ck2_data(string, is_save = False, empty_values = False):
     chars_until_progress -= 1
     if chars_until_progress == 0:
       sys.stdout.write('=')
+      sys.stdout.flush()
       chars_until_progress = chars_per_increment
 
     if x == '\n':
@@ -1410,6 +1411,7 @@ def main():
     print ' # Error reading file. #'
     print ' #######################'
     print ''
+    raise
     sys.exit ()
     
   print '### Finished reading save file. ###'
