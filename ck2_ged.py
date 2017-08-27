@@ -886,7 +886,7 @@ def read_save(filename, dynasty_map):
           character_map[int(value)].title_history.add_title(title_map[keys[1]], Range(Date(), Date()), True)
           
         if keys[1].startswith('b_dyn_'):
-          founder_id = keys[1].split('_')[-1]
+          founder_id = keys[1].split('_')[2]
           if is_integer(founder_id):
             dynasty_id = character_map[int(founder_id)].dynasty_id
             title_map[keys[1]].name = 'House ' + dynasty_map[dynasty_id].name
