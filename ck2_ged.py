@@ -884,19 +884,6 @@ def read_save(filename, dynasty_map):
           
         if len(keys) == 3 and keys[1].startswith('b_') and not keys[1].startswith('b_dyn_') and keys[2] == 'holder' and is_integer(value):
           character_map[int(value)].title_history.add_title(title_map[keys[1]], Range(Date(), Date()), True)
-          
-        if keys[1].startswith('b_dyn_'):
-          founder_id = keys[1].split('_')[2]
-          if is_integer(founder_id):
-            dynasty_id = character_map[int(founder_id)].dynasty_id
-            title_map[keys[1]].name = 'House ' + dynasty_map[dynasty_id].name
-            title_map[keys[1]].rank_name[1] = 'Patrician'
-            
-        if keys[1].startswith('k_dyn_'):
-          founder_id = keys[1].split('_')[-1]
-          if is_integer(founder_id):
-            dynasty_id = character_map[int(founder_id)].dynasty_id
-            title_map[keys[1]].name = dynasty_map[dynasty_id].name + ' Clan'
             
         if keys[2] == 'liege':
           title_map[keys[1]].independent = False
@@ -919,6 +906,22 @@ def read_save(filename, dynasty_map):
           character = character_map[title_holder]
           r = Range(title_date, parse_date(keys[3]))
           character.title_history.add_title(title_map[title_id], r, False)
+          
+        if title_id.startswith('b_dyn_') and title_map[title_id].rank_name[1] is None and title_holder in character_map:
+          character = character_map[title_holder]
+          dynasty_name = dynasty_map[character.dynasty_id].name
+          title_map[title_id].name = 'House ' + dynasty_name
+          title_map[title_id].rank_name[1] = 'Patrician'
+          
+        if (title_id.startswith('k_dyn_') or title_id.startswith('e_dyn_')) \
+           and title_map[title_id].name == '' and title_holder in character_map:
+          character = character_map[title_holder]
+          if character.government == 'nomadic_government':
+            dynasty_name = dynasty_map[character.dynasty_id].name
+            if title_id.startswith('k_dyn_'):
+              title_map[title_id].name = dynasty_name + ' Clan'
+            else:
+              title_map[title_id].name = dynasty_name + ' Khaganate'
           
         title_id = keys[1]
         title_date = parse_date(keys[3])
