@@ -189,6 +189,8 @@ class TitleHistory(object):
           rank = VICEDUKE
         if rank == KING:
           rank = VICEKING
+      if rank >= NONE:
+        print 'rank NONE:', self.primary
       if p.rank_name[self.gender] is None:
         s = get_rank(rank_names, rank, self.government, cul_rel, self.gender) + ' ' + self.name
       else:
@@ -214,6 +216,8 @@ class TitleHistory(object):
         rank = EMPEROR
       else:
         rank = NONE
+      if rank == NONE:
+        print 'rank NONE:', self.primary
       return get_rank(rank_names, rank, self.government, cul_rel, self.gender) + ' ' + name + ' of ' + self.primary
   def get_years_of_rule(self, rank_names, title_map):
     if len(self.titles) == 0:
@@ -249,6 +253,8 @@ class TitleHistory(object):
             rank = VICEDUKE
           if rank == KING:
             rank = VICEKING
+        if rank >= NONE:
+          print 'rank NONE:', t.id
         if t.rank_name[self.gender] is None:
           s = get_rank(rank_names, rank, self.government, cul_rel, self.gender) + ' of '
         else:
@@ -842,13 +848,13 @@ def read_save(filename, dynasty_map):
           character.government = value
         elif keys[2] == 'lge':
           character.independent = False
-        elif generate_titles and keys[2] == 'oh' and not character.title_history.primary_set:
+        elif generate_titles and keys[2] == 'oh' and value != '---' and not character.title_history.primary_set:
           character.title_history.primary = value
           character.title_history.primary_set = True
         elif len(keys) == 4 and keys[2] == 'nick' and keys[3] == 'nickname':
           character.nickname = value
           nicknames.append(value)
-        elif generate_titles and len(keys) == 5 and keys[2] == 'dmn' and keys[3] == 'primary' and keys[4] == 'title':
+        elif generate_titles and len(keys) == 5 and keys[2] == 'dmn' and keys[3] == 'primary' and keys[4] == 'title' and value != '---':
           character.title_history.primary = value
           character.title_history.primary_set = True
           
@@ -944,23 +950,50 @@ def read_save(filename, dynasty_map):
   return (player_id, dynasty_map, character_map, title_map, nicknames)
   
 def get_rank(rank_names, rank, government, culture_religion, gender):
-  if culture_religion.id in rank_names[government][rank]:
-    final = rank_names[government][rank][culture_religion.id]
-  elif culture_religion.group in rank_names[government][rank]:
-    final = rank_names[government][rank][culture_religion.group]
-  elif '' in rank_names[government][rank]:
-    final = rank_names[government][rank]['']
-  elif government == 'temple':
-    final = ['', culture_religion.priest_title]
-  elif '' in rank_names:
-    final = rank_names[''][rank]['']
-  else:
-    final = ['Countess', 'Count']
+  if rank >= NONE:
+    return ''
     
-  if gender == 0 and final[0] != '':
-    return final[0]
+  male_rank_names = []
+  female_rank_names = []
+  
+  if government in rank_names:
+    if culture_religion.id in rank_names[government][rank]:
+      male_rank_names.append(rank_names[government][rank][culture_religion.id][1])
+      female_rank_names.append(rank_names[government][rank][culture_religion.id][0])
+    if culture_religion.group in rank_names[government][rank]:
+      male_rank_names.append(rank_names[government][rank][culture_religion.group][1])
+      female_rank_names.append(rank_names[government][rank][culture_religion.group][0])
+    if '' in rank_names[government][rank]:
+      male_rank_names.append(rank_names[government][rank][''][1])
+      female_rank_names.append(rank_names[government][rank][''][0])
+    if government == 'temple':
+      male_rank_names.append(culture_religion.priest_title)
+      female_rank_names.append(culture_religion.priest_title)
+    
+  if '' in rank_names and government != '':
+    if culture_religion.id in rank_names[''][rank]:
+      male_rank_names.append(rank_names[''][rank][culture_religion.id][1])
+      female_rank_names.append(rank_names[''][rank][culture_religion.id][0])
+    if culture_religion.group in rank_names[''][rank]:
+      male_rank_names.append(rank_names[''][rank][culture_religion.group][1])
+      female_rank_names.append(rank_names[''][rank][culture_religion.group][0])
+    if '' in rank_names[''][rank]:
+      male_rank_names.append(rank_names[''][rank][''][1])
+      female_rank_names.append(rank_names[''][rank][''][0])
+     
+  if gender == 1:
+    best_rank_names = male_rank_names + female_rank_names
   else:
-    return final[1]
+    best_rank_names = female_rank_names + male_rank_names
+    
+  for rn in best_rank_names:
+    if rn is not None and rn != '':
+      return rn
+      
+  if gender == 1:
+    return 'Count'
+  else:
+    return 'Countess'
   
 def mark_character_and_family(character_map, character_id):
   c_character = character_map[character_id]
