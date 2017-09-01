@@ -816,7 +816,7 @@ def read_save(filename, dynasty_map):
             character.regnal_name = value
         elif keys[2] == 'name':
           character.regnal_name = value
-        elif keys[2] == 'nick':
+        elif len(keys) == 3 and keys[2] == 'nick':
           character.nickname = value
           nicknames.append(value)
         elif keys[2] == 'b_d':
@@ -851,7 +851,10 @@ def read_save(filename, dynasty_map):
         elif generate_titles and keys[2] == 'oh' and value != '---' and not character.title_history.primary_set:
           character.title_history.primary = value
           character.title_history.primary_set = True
-        elif len(keys) == 4 and keys[2] == 'nick' and keys[3] == 'nickname':
+        elif len(keys) == 4 and keys[2] == 'nick' and keys[3] == 'name':
+          character.nickname = value
+          nicknames.append(value)
+        elif len(keys) == 4 and keys[2] == 'nick' and keys[3] == 'nickname' and character.nickname == '':
           character.nickname = value
           nicknames.append(value)
         elif generate_titles and len(keys) == 5 and keys[2] == 'dmn' and keys[3] == 'primary' and keys[4] == 'title' and value != '---':
