@@ -2,7 +2,7 @@ ck2\_ged for Crusader Kings II
 
     Requires:         Crusader Kings II    
                       Python (2.7)    
-    Utility version:  2017.08.31    
+    Utility version:  2017.09.02    
     Readme version:   2017.08.01    
 
 ----------------------------------------------------------------------
@@ -49,6 +49,8 @@ if you'd let me know of any changes you make and release, however.
 
 ----------------------------------------------------------------------
 History:
+
+After this, the script was moved to github.
 
 2017.07.31 - Rewrote parser.  Updated to work with CK2 2.6.3 and 2.7.1.  Fixed some bugs.  Added primary titles and years of rule feature.
 

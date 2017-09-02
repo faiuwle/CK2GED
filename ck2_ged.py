@@ -39,6 +39,8 @@ month_name = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV',
 full_month_name = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 whitespace = [' ', '\t', '\n', '\r']
 special_chars = ['{', '}', '=', '"', '#']
+arabic = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+roman = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I']
 
 NONE = 7
 VICEKING = 6
@@ -147,12 +149,33 @@ class Title(object):
     self.viceroyalty = False
     self.independent = True
     self.religious_head = False
+    self.holders = []
   def __cmp__(self, other):
     return self.rank - other.rank
+  def assign_regnal_numbers(self, character_map, name_map):
+    name_counts = {}
+    first_of_name = {}
+    for h in self.holders:
+      character = character_map[h]
+      name = character.regnal_name
+      if name in name_map:
+        name = name_map[name]
+      if self.id in character.title_history.regnal_numbers:
+        continue
+      if name in name_counts:
+        name_counts[name] += 1
+      else:
+        name_counts[name] = 1
+      if name_counts[name] > 1:
+        character.title_history.regnal_numbers[self.id] = name_counts[name]
+        character_map[first_of_name[name]].title_history.regnal_numbers[self.id] = 1
+      else:
+        first_of_name[name] = h
       
 class TitleHistory(object):
   def __init__(self):
     self.titles = {}
+    self.regnal_numbers = {}
     self.primary = ''
     self.primary_set = False
     self.highest_rank = NONE
@@ -181,6 +204,12 @@ class TitleHistory(object):
       cul_rel = self.culture
     if self.primary in title_map:
       p = title_map[self.primary]
+      if self.primary not in self.regnal_numbers:
+        number = 0
+      else:
+        number = self.regnal_numbers[self.primary]
+      if number > 0:
+        number = int_to_roman(number)
       rank = p.rank
       if rank == DUKE and self.independent and self.culture.dukes_called_kings:
         rank = KING
@@ -195,6 +224,10 @@ class TitleHistory(object):
         s = get_rank(rank_names, rank, self.government, cul_rel, self.gender) + ' ' + self.name
       else:
         s = p.rank_name[self.gender] + ' ' + self.name
+      if type(number) != int:
+        s += ' ' + number
+      if self.nickname != '':
+        s += ' ' + self.nickname
       if not p.religious_head:
         if self.culture.id in p.cultural_names:
           s += ' of ' + p.cultural_names[self.culture.id]
@@ -218,7 +251,10 @@ class TitleHistory(object):
         rank = NONE
       if rank == NONE:
         print 'rank NONE:', self.primary
-      return get_rank(rank_names, rank, self.government, cul_rel, self.gender) + ' ' + name + ' of ' + self.primary
+      s = get_rank(rank_names, rank, self.government, cul_rel, self.gender) + ' ' + self.name
+      if self.nickname != '':
+        s += ' ' + self.nickname
+      s += ' of ' + self.primary
   def get_years_of_rule(self, rank_names, title_map):
     if len(self.titles) == 0:
       return []
@@ -315,10 +351,8 @@ class Character(object):
       self.title_history.government = government_map[self.government]
     self.title_history.gender = self.gender
     self.title_history.independent = self.independent
-    if self.nickname == '': 
-      self.title_history.name = self.regnal_name
-    else:
-      self.title_history.name = self.regnal_name + ' ' + self.nickname
+    self.title_history.name = self.regnal_name
+    self.title_history.nickname = self.nickname
   def get_primary_title(self, rank_names, title_map):
     return self.title_history.get_primary(rank_names, title_map)
   def get_years_of_rule(self, rank_names, title_map):
@@ -361,6 +395,16 @@ def guess_title_name(title_id):
   for i, p in enumerate(parts):
     parts[i] = p[0].upper() + p[1:]
   return ' '.join(parts[1:])
+  
+def int_to_roman(number):
+  result = ''
+  
+  for i in range(len(arabic)):
+    count = int(number / arabic[i])
+    result += roman[i] * count
+    number -= arabic[i] * count
+    
+  return result
   
 def parse_ck2_data(string, is_save = False, empty_values = False):
   current_keys = []
@@ -577,11 +621,11 @@ def read_dynasties_file(file, dynasty_map):
    
   return dynasty_map
   
-def read_cultures_file(file, culture_map):
+def read_cultures_file(file, culture_map, name_map):
   file_contents = file.read()
   
   for keys, value in parse_ck2_data(file_contents, False):
-    if len(keys) == 3 and keys[2] == 'color':
+    if len(keys) == 3 and keys[1] not in culture_map and keys[2] in ['color', 'dukes_called_kings', 'male_names', 'female_names']:
       culture = Culture()
       culture.id = keys[1]
       culture.group = keys[0]
@@ -590,25 +634,26 @@ def read_cultures_file(file, culture_map):
     if len(keys) == 3 and keys[2] == 'dukes_called_kings' and value == 'yes':
       culture_map[keys[1]].dukes_called_kings = True
       
-  return culture_map
+    if len(keys) == 3 and keys[2] in ['male_names', 'female_names']:
+      for name in value:
+        parts = name.split('_')
+        if len(parts) < 2:
+          continue
+        name_map[parts[0]] = parts[1]
+      
+  return (culture_map, name_map)
   
 def read_religions_file(file, religion_map, misc_localization):
   file_contents = file.read()
   
   for keys, value in parse_ck2_data(file_contents, False):
-    if len(keys) == 3 and keys[2] == 'color' and keys[1] not in religion_map:
+    if len(keys) == 3 and keys[2] in ['color', 'priest_title'] and keys[1] not in religion_map:
       religion = Religion()
       religion.id = keys[1]
       religion.group = keys[0]
       religion_map[keys[1]] = religion
       
-    if len(keys) == 3 and keys[2] == 'priest_title':
-      if keys[1] not in religion_map:
-        religion = Religion()
-        religion.id = keys[1]
-        religion.group = keys[0]
-        religion_map[keys[1]] = religion
-      
+    if len(keys) == 3 and keys[2] == 'priest_title':     
       religion_map[keys[1]].priest_title = value
       misc_localization.append(value)
       
@@ -668,7 +713,7 @@ def read_governments_file(file, government_map):
   file_contents = file.read()
   
   for keys, value in parse_ck2_data(file_contents):
-    if len(keys) == 3 and keys[2] == 'allowed_holdings':
+    if len(keys) == 3 and keys[2] in ['allowed_holdings', 'title_prefix']:
       if keys[1] not in government_map:
         government_map[keys[1]] = ''
   
@@ -910,11 +955,13 @@ def read_save(filename, dynasty_map):
           character.title_history.add_title(title_map[title_id], r, True)
           if character.title_history.primary == title_id:
             character.independent = title_map[title_id].independent
+          title_map[title_id].holders.append(title_holder)
           
         elif title_id != '' and type(parse_date(keys[3])) == Date and type(title_date) == Date and title_holder in character_map:
           character = character_map[title_holder]
           r = Range(title_date, parse_date(keys[3]))
           character.title_history.add_title(title_map[title_id], r, False)
+          title_map[title_id].holders.append(title_holder)
           
         if title_id.startswith('b_dyn_') and title_map[title_id].rank_name[1] is None and title_holder in character_map:
           character = character_map[title_holder]
@@ -1466,18 +1513,19 @@ def main():
   ## Opening culture files #############################################
   try:
     culture_map = {}
+    name_map = {}
     for filename, base, location in dir_names_lists['cultures']:
       if location == '':
         print '### Now reading', filename, '###'
         debug_write('Parsing ' + filename)
         with open(filename) as file:
-          culture_map = read_cultures_file(file, culture_map)
+          culture_map, name_map = read_cultures_file(file, culture_map, name_map)
       else:
         print '### Now reading', filename, 'in', location, '###'
         debug_write('Parsing ' + filename + ' in ' + location)
         with zipfile.ZipFile(os.path.join(mod_dir, location)) as mod_file:
           file = mod_file.open(filename)
-          culture_map = read_cultures_file(file, culture_map)
+          culture_map, name_map = read_cultures_file(file, culture_map, name_map)
   except IOError:
     print ''
     print ' #######################'
@@ -1636,6 +1684,10 @@ def main():
   for r in religion_map:
     if religion_map[r].priest_title != '' and misc_localization_map[religion_map[r].priest_title] != '':
       religion_map[r].priest_title = misc_localization_map[religion_map[r].priest_title]
+      
+  # Assign regnal numbers
+  for t in title_map:
+    title_map[t].assign_regnal_numbers(character_map, name_map)
       
   # Transfer information to title histories
   for c in character_map:
