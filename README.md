@@ -2,8 +2,8 @@ ck2\_ged for Crusader Kings II
 
     Requires:         Crusader Kings II    
                       Python (2.7)    
-    Utility version:  2017.09.02    
-    Readme version:   2017.08.01    
+    Utility version:  2017.11.04
+    Readme version:   2017.11.04    
 
 ----------------------------------------------------------------------
 Description:
@@ -20,16 +20,21 @@ Instructions:
 
 Place copies of the following files into the same directory:
   - ck2\_ged.py
+  - settings.py
+  - gamedata.py
+  - gedcomwriter.py
   - The .ck2 file you wish to convert
 
-Open the script in your favorite text editor or word processor and make 
+Open settings.py in your favorite text editor or word processor and make 
 sure ck2\_install\_dir and mod\_dir are set to your CKII install directory 
 and the directory where you install mods, respectively.  Set other 
 options as you desire.
 
-Run the script, follow the prompts, and wait a moment. When finished,
+Run ck2\_ged.py, follow the prompts, and wait a moment. When finished,
 you will find a .ged file with the same name as the .ck2 file in the
 directory.
+
+Report any problems to the Paradox Interactive Forums thread: https://forum.paradoxplaza.com/forum/index.php?threads/tool-script-to-export-family-trees-from-your-savefile.1037854/.  I probably need you to upload your save and tell me what mods you are using.
 
 ----------------------------------------------------------------------
 Credits:
