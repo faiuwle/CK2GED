@@ -1090,7 +1090,7 @@ class GameData(object):
           file = open(filename)
         else:
           print '### Now reading', filename, 'in', location, '###'
-          with zipfile.Zipfile(location) as mod_file:
+          with zipfile.ZipFile(location) as mod_file:
             file = mod_file.open(filename)
       except IOError:
         print ''
