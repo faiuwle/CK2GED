@@ -543,7 +543,7 @@ class GameFiles(object):
           files = [(f, os.path.basename(f), '') for f in files]
 
         elif not is_dir:
-          with zipfile.Zipfile(os.path.join(mod_dir, m)) as mod_file:
+          with zipfile.ZipFile(os.path.join(mod_dir, m)) as mod_file:
             files = [f for f in mod_file.namelist()  \
                      if path in f and f.endswith('.txt')]
             files = [(f, os.path.basename(f), os.path.join(mod_dir, m))  \
@@ -559,7 +559,7 @@ class GameFiles(object):
         files = [(f, os.path.basename(f), '') for f in files]
 
       elif not is_dir:
-        with zipfile.Zipfile(os.path.join(mod_dir, m)) as mod_file:
+        with zipfile.ZipFile(os.path.join(mod_dir, m)) as mod_file:
           files = [f for f in mod_file.namelist()  \
                    if localization_path in f and f.endswith('.csv')]
           files = [(f, os.path.basename(f), os.path.join(mod_dir, m))  \
