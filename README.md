@@ -13,8 +13,6 @@ Converts a Crusader Kings II save file (.ck2) into a GEDCOM file
 software packages, providing the player a way to view the family
 relations occuring within their game.
 
-Can also produce .csv files for dynasties, characters, and families.
-
 ----------------------------------------------------------------------
 Instructions:
 
