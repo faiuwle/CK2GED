@@ -1,8 +1,8 @@
 ck2\_ged for Crusader Kings II    
 
-    Requires:         Crusader Kings II    
-                      Python (2.7)    
-    Utility version:  2017.11.04
+    Requires:         Crusader Kings II (version 2.6.3 through 2.8.0)   
+                      Python (version 2.7)    
+    Utility version:  2017.11.17
     Readme version:   2017.11.04    
 
 ----------------------------------------------------------------------
