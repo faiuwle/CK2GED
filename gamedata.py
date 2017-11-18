@@ -114,6 +114,7 @@ class Culture(object):
     self.id = ''
     self.group = ''
     self.dukes_called_kings = False
+    self.dynasty_name_first = False
     
 class Religion(object):
   def __init__(self):
@@ -450,7 +451,12 @@ class Character(object):
     self.title_history.government = self.government
     self.title_history.gender = self.gender
     self.title_history.independent = self.independent
-    self.title_history.name = self.regnal_name
+
+    if self.culture.dynasty_name_first and self.dynasty_name != '':
+      self.title_history.name = self.dynasty_name + ' ' + self.regnal_name
+    else:
+      self.title_history.name = self.regnal_name
+
     self.title_history.nickname = self.nickname
 
   def get_primary_title(self, title_map):
@@ -953,6 +959,10 @@ class GameData(object):
         if len(keys) == 3 and keys[2] == 'dukes_called_kings'  \
            and value == 'yes':
           self.culture_map[keys[1]].dukes_called_kings = True
+
+        if len(keys) == 3 and keys[2] == 'dynasty_name_first'  \
+           and value == 'yes':
+          self.culture_map[keys[1]].dynasty_name_first = True
 
         if len(keys) == 3 and keys[2] in ['male_names', 'female_names']:
           for name in value:

@@ -51,6 +51,7 @@ def main():
       sys.exit()
 
   if not game_data.mark_characters(settings.real_fathers):
+    sys.stdin.readline()
     sys.exit()
 
   gedcom_writer = GedcomWriter()
