@@ -148,7 +148,8 @@ class Title(object):
       if name in name_map:
         name = name_map[name]
 
-      if self.id in character.title_history.regnal_numbers:
+      if self.id in character.title_history.regnal_numbers  \
+         or (name in first_of_name and first_of_name[name] == h):
         continue
 
       if name in name_counts:
