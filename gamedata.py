@@ -32,10 +32,11 @@ class PortraitType(object):
     self.headgear_that_hides_hair = []
 
 class SpriteType(object):
-  self.id = ''
-  self.path = ''
-  self.dlc_path = ''
-  self.num_frames = 0
+  def __init__(self):
+    self.id = ''
+    self.path = ''
+    self.dlc_path = ''
+    self.num_frames = 0
 
 class Date(object):
   gedcom_month_name = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP',  \
