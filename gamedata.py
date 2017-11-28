@@ -16,6 +16,27 @@ EMPEROR = 0
 class InstallDirNotFoundError(Exception):
   pass
 
+class Layer(object):
+  def __init__(self):
+    self.sprite_id = ''
+    self.dna_properties = ''
+    self.index = -1
+    self.color_link = ''
+
+class PortraitType(object):
+  def __init__(self):
+    self.id = ''
+    self.layers = []
+    self.hair_colors = []  # Define later
+    self.eye_colors = []   # Define later
+    self.headgear_that_hides_hair = []
+
+class SpriteType(object):
+  self.id = ''
+  self.path = ''
+  self.dlc_path = ''
+  self.num_frames = 0
+
 class Date(object):
   gedcom_month_name = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP',  \
                        'OCT', 'NOV','DEC']
@@ -115,6 +136,7 @@ class Culture(object):
     self.group = ''
     self.dukes_called_kings = False
     self.dynasty_name_first = False
+    self.graphics = []
     
 class Religion(object):
   def __init__(self):
@@ -423,7 +445,10 @@ class Character(object):
     self.gender = 1
     self.birthday = []
     self.deathday = []
+    self.dna = []
+    self.properties = []
     self.culture = None
+    self.graphical_culture = None
     self.religion = None
     self.father = ''
     self.real_father = ''
@@ -472,6 +497,7 @@ class GameFiles(object):
     self.dir_lists = {'dynasties': [], 'landed_titles': [], 'cultures': [],  \
                       'religions': [], 'governments': []}
     self.localization = []
+    self.portrait_files = []
 
   def initialize(self, ck2_install_dir, mod_dir):
     if not os.path.exists(ck2_install_dir):
@@ -579,6 +605,8 @@ class GameFiles(object):
   def get_game_files(self, ck2_install_dir):
     common_path = os.path.join(ck2_install_dir, 'common')
     localization_path = os.path.join(ck2_install_dir, 'localisation')
+    portrait_path = os.path.join(ck2_install_dir, 'interface', 'portraits')
+    dlc_path = os.path.join(ck2_install_dir, 'dlc')
 
     for dir_name in self.dir_lists:
       path = os.path.join(common_path, dir_name)
@@ -599,6 +627,27 @@ class GameFiles(object):
       files = [f for f in files if f[1] not in  \
                 [x[1] for x in self.localization]]
       self.localization += files
+
+    if os.path.exists(portrait_path):
+      files = [os.path.join(portrait_path, f) for f in listdir(portrait_path)]
+      files = filter(os.path.isfile, files)
+      files = [(f, '') for f in files]
+      self.portrait_files += files
+
+    if os.path.exists(dlc_path):
+      portrait_dlcs = ['002', '013', '014', '016', '018', '020', '022', '028', \
+                       '039', '041', '044', '046', '047', '052', '057', '063', \
+                       '065', '067', '070', '072', '073']
+
+      for dlc in portrait_dlcs:
+        dlc_file_path = os.path.join(dlc_path, 'dlc' + dlc + '.zip')
+
+        if os.path.exists(dlc_file_path):
+          with zipfile.Zipfile(dlc_file_path) as dlc_file:
+            files = [f for f in dlc_file.namelist()  \
+                     if 'interface' in f and f.endswith('.gfx')]
+            files = [(f, dlc_file_path) for f in files]
+            self.portrait_files += files
 
 class GameData(object):
   digits = ['0','1','2','3','4','5','6','7','8','9']
@@ -900,6 +949,9 @@ class GameData(object):
 
     return file_contents
 
+  def read_portrait_info(self):
+    pass
+
   def read_dynasties(self):
     if len(self.game_files.dynasties) == 0:
       print ''
@@ -950,6 +1002,8 @@ class GameData(object):
     for filename, location in self.game_files.cultures:
       file_contents = self.read_file(filename, location, debug)
 
+      current_group_graphics = []
+
       for keys, value in self.parse_ck2_data(file_contents, debug):
         if len(keys) == 3 and keys[1] not in self.culture_map:
           culture = Culture()
@@ -972,6 +1026,12 @@ class GameData(object):
               continue
 
             self.name_map[parts[0]] = parts[1]
+
+        if len(keys) == 2 and keys[1] == 'graphical_cultures':
+          current_group_graphics = value
+
+        if len(keys) == 3 and keys[2] == 'graphical_cultures':
+          self.culture_map[keys[1]].graphics = value + current_group_graphics
 
   def read_religions(self):
     if len(self.game_files.religions) == 0:
@@ -1297,9 +1357,16 @@ class GameData(object):
           character.deathday = self.parse_date(value)
         elif keys[2] == 'fem' and value == 'yes':
           character.gender = 0
+        elif keys[2] == 'dna':
+          character.dna = [v for v in value]
+        elif keys[2] == 'prp':
+          character.properties = [v for v in value]
         elif keys[2] == 'cul':
           if value in self.culture_map:
             character.culture = self.culture_map[value]
+        elif keys[2] == 'g_cul':
+          if value in self.culture_map:
+            character.graphical_culture = self.culture_map[value]
         elif keys[2] == 'rel':
           if value in self.religion_map:
             character.religion = self.religion_map[value]
@@ -1319,6 +1386,10 @@ class GameData(object):
             culture = self.dynasty_map[int(value)].culture
             if culture in self.culture_map:
               character.culture = self.culture_map[culture]
+          if character.graphical_culture is None:
+            culture = self.dynasty_map[int(value)].culture
+            if culture in self.culture_map:
+              character.graphical_culture = self.culture_map[culture]
           if character.religion is None:
             religion = self.dynasty_map[int(value)].religion
             if religion in self.religion_map:
