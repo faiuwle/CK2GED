@@ -28,7 +28,7 @@ def main():
       sys.stdin.readline()
       sys.exit()
 
-  print '\nPlease enter the name of your save file, without with .ck2: ',
+  print '\nPlease enter the name of your save file, without the .ck2: ',
   filename = sys.stdin.readline().strip()
 
   print '\n'
