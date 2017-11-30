@@ -22,6 +22,15 @@ class Layer(object):
     self.dna_properties = ''
     self.index = -1
     self.color_link = ''
+    self.left_offset = 0
+    self.bottom_offset = 0
+    self.culture_index = -1
+  def __str__(self):
+    s = self.sprite_id + ':' + self.dna_properties + str(self.index) + ':'
+    s += self.color_link + ':o' + str(self.left_offset) + ':x'
+    s += str(self.bottom_offset)
+    s += ':c' + str(self.culture_index)
+    return s
 
 class PortraitType(object):
   def __init__(self):
@@ -30,6 +39,12 @@ class PortraitType(object):
     self.hair_colors = []  # Define later
     self.eye_colors = []   # Define later
     self.headgear_that_hides_hair = []
+    self.culture_index_layers = []
+  def __str__(self):
+    s = self.id + ' ' + ','.join(map(str, self.layers)) + ' '
+    s += repr(self.headgear_that_hides_hair) + ' '
+    s += ','.join(map(str, self.culture_index_layers))
+    return s
 
 class SpriteType(object):
   def __init__(self):
@@ -37,6 +52,8 @@ class SpriteType(object):
     self.path = ''
     self.dlc_path = ''
     self.num_frames = 0
+  def __str__(self):
+    return ' '.join([self.id,self.path,self.dlc_path,str(self.num_frames)])
 
 class Date(object):
   gedcom_month_name = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP',  \
@@ -574,6 +591,7 @@ class GameFiles(object):
         if is_dir and os.path.exists(path):
           files = [os.path.join(path, f) for f in listdir(path)]
           files = filter(os.path.isfile, files)
+          files = [f for f in files if f.endswith('.txt')]
           files = [(f, os.path.basename(f), '') for f in files]
 
         elif not is_dir:
@@ -590,6 +608,7 @@ class GameFiles(object):
         files = [os.path.join(localization_path, f)  \
                  for f in listdir(localization_path)]
         files = filter(os.path.isfile, files)
+        files = [f for f in files if f.endswith('.csv')]
         files = [(f, os.path.basename(f), '') for f in files]
 
       elif not is_dir:
@@ -616,6 +635,7 @@ class GameFiles(object):
       if os.path.exists(path):
         files = [os.path.join(path, f) for f in listdir(path)]
         files = filter(os.path.isfile, files)
+        files = [f for f in files if f.endswith('.txt')]
         files = [(f, os.path.basename(f), '') for f in files]
         files = [f for f in files if f[1] not in [x[1] for x in list]]
         list.extend(files)
@@ -624,6 +644,7 @@ class GameFiles(object):
       files = [os.path.join(localization_path, f)  \
                for f in listdir(localization_path)]
       files = filter(os.path.isfile, files)
+      files = [f for f in files if f.endswith('.csv')]
       files = [(f, os.path.basename(f), '') for f in files]
       files = [f for f in files if f[1] not in  \
                 [x[1] for x in self.localization]]
@@ -632,6 +653,7 @@ class GameFiles(object):
     if os.path.exists(portrait_path):
       files = [os.path.join(portrait_path, f) for f in listdir(portrait_path)]
       files = filter(os.path.isfile, files)
+      files = [f for f in files if f.endswith('.gfx')]
       files = [(f, '') for f in files]
       self.portrait_files += files
 
@@ -644,7 +666,7 @@ class GameFiles(object):
         dlc_file_path = os.path.join(dlc_path, 'dlc' + dlc + '.zip')
 
         if os.path.exists(dlc_file_path):
-          with zipfile.Zipfile(dlc_file_path) as dlc_file:
+          with zipfile.ZipFile(dlc_file_path) as dlc_file:
             files = [f for f in dlc_file.namelist()  \
                      if 'interface' in f and f.endswith('.gfx')]
             files = [(f, dlc_file_path) for f in files]
@@ -658,9 +680,10 @@ class GameData(object):
   def __init__(self):
     self.debug_all = False
     self.debug_save = False
+    self.debug_portraits = True
     self.debug_dynasties = False
     self.debug_landed_titles = False
-    self.debug_cultures = False
+    self.debug_cultures = True
     self.debug_religions = False
     self.debug_governments = False
 
@@ -672,6 +695,7 @@ class GameData(object):
   def initialize(self, ck2_install_dir, mod_dir):
     self.game_files.initialize(ck2_install_dir, mod_dir)
 
+    self.read_portrait_info()
     self.read_dynasties()
     self.read_cultures()
     self.read_religions()
@@ -707,7 +731,8 @@ class GameData(object):
     return ' '.join(parts[1:])
 
 
-  def parse_ck2_data(self, data, debug=False, is_save=False, empty_values=False):
+  def parse_ck2_data(self, data, debug=False, is_save=False,  \
+                     empty_values=False):
     current_keys = []
     current_value = ''
     current_line = 1
@@ -750,12 +775,15 @@ class GameData(object):
           current_keys = current_keys[:-1]
         elif x == '{':
           current_keys.append('')
+        elif x == '"':
+          current_value = []
+          state = 'quoted_list_item'
         elif x == '#':
           saved_state = 'expect_key'
           state = 'comment'
         elif x in GameData.special_chars and debug:
           debug_file.write('Unexpected character ' + x + ' on line '  \
-                           + repr(current_line) + ' (expect_key)')
+                           + repr(current_line) + ' (expect_key)\n')
         elif x not in GameData.whitespace:
           temp_string = x
           state = 'key'
@@ -775,7 +803,7 @@ class GameData(object):
           state = 'expect_key'
         elif x in GameData.special_chars and debug:
           debug_file.write('Unexpected character in key: ' + x + ' on line '  \
-                           + repr(current_line) + ' (key)')
+                           + repr(current_line) + ' (key)\n')
         elif x not in GameData.whitespace:
           temp_string += x
         elif temp_string != '':
@@ -791,7 +819,7 @@ class GameData(object):
           state = 'expect_key'
         elif x in GameData.special_chars and debug:
           debug_file.write('Unexpected character ' + x + ' on line '  \
-                           + repr(current_line) + ' (expect_value)')
+                           + repr(current_line) + ' (expect_value)\n')
         elif x not in GameData.whitespace:
           temp_string = x
           state = 'value'
@@ -827,7 +855,7 @@ class GameData(object):
           state = 'comment'
         elif x in GameData.special_chars and debug:
           debug_file.write('Unexpected character ' + x + ' on line '  \
-                           + current_line + ' (value)')
+                           + current_line + ' (value)\n')
         else:
           temp_string += x
         
@@ -863,7 +891,7 @@ class GameData(object):
           temp_string = ''
         elif x in GameData.special_chars and debug:
           debug_file.write('Unexpected character ' + x + ' on line '  \
-                           + repr(current_line) + ' (list)')
+                           + repr(current_line) + ' (list)\n')
         elif x not in GameData.whitespace:
           temp_string = x
           state = 'list_item'
@@ -888,7 +916,7 @@ class GameData(object):
           state = 'comment'
         elif x in GameData.special_chars and debug:
           debug_file.write('Unexpected character ' + x + ' on line '  \
-                           + repr(current_line) + ' (list_item)')
+                           + repr(current_line) + ' (list_item)\n')
         else:
           temp_string += x
         
@@ -926,7 +954,7 @@ class GameData(object):
 
       if debug:
         debug_file = open('parse.log', 'a')
-        debug_file.write('Parsing ' + filename)
+        debug_file.write('Parsing ' + filename + '\n')
         debug_file.close()
 
     else:
@@ -945,13 +973,106 @@ class GameData(object):
 
       if debug:
         debug_file = open('parse.log', 'a')
-        debug_file.write('Parsing ' + filename + ' in ' + location)
+        debug_file.write('Parsing ' + filename + ' in ' + location + '\n')
         debug_file.close()
 
     return file_contents
 
   def read_portrait_info(self):
-    pass
+    if len(self.game_files.portrait_files) == 0:
+      print ''
+      print ' ##########################################'
+      print ' # Warning: no portrait files found.      #'
+      print ' # Check CK2 install and mod directories. #'
+      print ' ##########################################'
+
+    self.portrait_map = {}
+    self.sprite_map = {}
+    debug = self.debug_all or self.debug_portraits
+
+    current_object = None
+
+    for filename, location in self.game_files.portrait_files:
+      file_contents = self.read_file(filename, location, debug)
+      
+      for keys, value in self.parse_ck2_data(file_contents, debug,  \
+                                             empty_values=True):
+        if len(keys) == 3 and keys[0] == 'spriteTypes'  \
+           and keys[1] == 'spriteType':
+          if current_object is None:
+            current_object = SpriteType()
+            current_object.dlc_path = location
+
+          if keys[2] == 'name':
+            current_object.id = value
+          elif keys[2] == 'texturefile':
+            current_object.path = value
+          elif keys[2] == 'noOfFrames' and self.is_integer(value):
+            current_object.num_frames = int(value)
+
+        if len(keys) == 2 and keys[0] == 'spriteTypes'  \
+           and keys[1] == 'spriteType' and value == '':
+          self.sprite_map[current_object.id] = current_object
+          current_object = None
+
+        if len(keys) >= 3 and keys[0] == 'spriteTypes'  \
+           and keys[1] == 'portraitType':
+          if current_object is None:
+            current_object = PortraitType()
+
+          if keys[2] == 'name':
+            current_object.id = value
+
+          elif keys[2] == 'layer':
+            for l in value:
+              parts = l.split(':')
+              if parts[0] == '':
+                continue
+
+              layer = Layer()
+              layer.sprite_id = parts[0]
+
+              for p in parts[1:]:
+                if (p.startswith('p') or p.startswith('d'))  \
+                   and self.is_integer(p[1:]):
+                  layer.dna_properties = p[0]
+                  layer.index = int(p[1:])
+
+                elif p.startswith('c') and self.is_integer(p[1:]):
+                  layer.culture_index = int(p[1:])
+                
+                elif p == 'h' or p == 'e':
+                  layer.color_link = p
+
+                elif p.startswith('o'):
+                  xindex = p.index('x')
+                  left = p[1:xindex]
+                  bottom = p[xindex+1:]
+
+                  if self.is_integer(left) and self.is_integer(bottom):
+                    layer.left_offset = int(left)
+                    layer.bottom_offset = int(bottom)
+
+              current_object.layers.append(layer)
+
+            culture_layers = [l for l in current_object.layers  \
+                              if l.culture_index >= 0]
+            culture_layers = sorted(culture_layers, key=lambda x: x.culture_index)
+            current_object.culture_index_layers = culture_layers
+
+          elif keys[2] == 'hair_color':
+            pass
+
+          elif keys[2] == 'eye_color':
+            pass
+
+          elif keys[2] == 'headgear_that_hides_hair':
+            current_object.headgear_that_hides_hair = value
+
+        if len(keys) == 2 and keys[0] == 'spriteTypes'  \
+           and keys[1] == 'portraitType' and value == '':
+          self.portrait_map[current_object.id] = current_object
+          current_object = None
 
   def read_dynasties(self):
     if len(self.game_files.dynasties) == 0:
@@ -1003,7 +1124,7 @@ class GameData(object):
     for filename, location in self.game_files.cultures:
       file_contents = self.read_file(filename, location, debug)
 
-      current_group_graphics = []
+      group_graphics = {}
 
       for keys, value in self.parse_ck2_data(file_contents, debug):
         if len(keys) == 3 and keys[1] not in self.culture_map:
@@ -1029,10 +1150,16 @@ class GameData(object):
             self.name_map[parts[0]] = parts[1]
 
         if len(keys) == 2 and keys[1] == 'graphical_cultures':
-          current_group_graphics = value
+          group_graphics[keys[0]] = value
 
         if len(keys) == 3 and keys[2] == 'graphical_cultures':
-          self.culture_map[keys[1]].graphics = value + current_group_graphics
+          self.culture_map[keys[1]].graphics = value
+
+      for c in self.culture_map:
+        culture = self.culture_map[c]
+
+        if culture.group in group_graphics:
+          culture.graphics += group_graphics[culture.group]
 
   def read_religions(self):
     if len(self.game_files.religions) == 0:
