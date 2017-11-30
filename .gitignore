@@ -1,3 +1,5 @@
 *.ck2
 *.ged
 *.pyc
+*.swp
+parse.log
