@@ -675,7 +675,8 @@ class GameFiles(object):
 class GameData(object):
   digits = ['0','1','2','3','4','5','6','7','8','9']
   whitespace = [' ', '\t', '\n', '\r']
-  special_chars = ['{', '}', '=', '"', '#']
+  predicate_chars = ['=', '>', '<']
+  special_chars = ['{', '}', '"', '#'] + predicate_chars
 
   def __init__(self):
     self.debug_all = False
@@ -683,7 +684,7 @@ class GameData(object):
     self.debug_portraits = True
     self.debug_dynasties = False
     self.debug_landed_titles = False
-    self.debug_cultures = True
+    self.debug_cultures = False
     self.debug_religions = False
     self.debug_governments = False
 
@@ -734,6 +735,7 @@ class GameData(object):
   def parse_ck2_data(self, data, debug=False, is_save=False,  \
                      empty_values=False):
     current_keys = []
+    current_key_name = ''
     current_value = ''
     current_line = 1
   
@@ -774,7 +776,7 @@ class GameData(object):
             yield (current_keys, current_value)
           current_keys = current_keys[:-1]
         elif x == '{':
-          current_keys.append('')
+          current_keys.append(('', ''))
         elif x == '"':
           current_value = []
           state = 'quoted_list_item'
@@ -789,10 +791,10 @@ class GameData(object):
           state = 'key'
           
       elif state == 'key':
-        if x == '=':
-          current_keys.append(temp_string)
-          temp_string = ''
-          state = 'expect_value'
+        if x in GameData.predicate_chars:
+          current_key_name = temp_string
+          temp_string = x
+          state = 'predicate'
         elif x == '}':      # e.g. societies={2}
           current_value = [temp_string]
           yield (current_keys, current_value)
@@ -810,6 +812,34 @@ class GameData(object):
           current_value = [temp_string]
           temp_string = ''
           state = 'list'
+
+      elif state == 'predicate':
+        if x in GameData.whitespace:
+          current_keys.append((current_key_name, temp_string))
+          temp_string = ''
+          state = 'expect_value'
+        elif x == '{':
+          current_keys.append((current_key_name, temp_string))
+          temp_string = ''
+          state = 'expect_key'
+        elif x == '#':
+          current_keys.append((current_key_name, temp_string))
+          temp_string = ''
+          saved_state = 'expect_value'
+          state = 'comment'
+        elif x == '"':
+          current_keys.append((current_key_name, temp_string))
+          temp_string = ''
+          state = 'quoted_value'
+        elif x in GameData.predicate_chars:
+          temp_string += x
+        elif x in GameData.special_chars and debug:
+          debug_file.write('Unexpected character ' + x + ' on line '  \
+                           + repr(current_line) + ' (predicate)')
+        else:
+          current_keys.append((current_key_name, temp_string))
+          temp_string = x
+          state = 'value'
           
       elif state == 'expect_value':
         if x == '"':
@@ -842,7 +872,7 @@ class GameData(object):
           current_value = ''
           if len(current_keys) > 0:
             current_keys = current_keys[:-1]
-          current_keys.append('')
+          current_keys.append(('', ''))
           state = 'expect_key'
         elif x == '#':
           current_value = temp_string
@@ -878,11 +908,12 @@ class GameData(object):
           if len(current_keys) > 0:
             current_keys = current_keys[:-1]
           state = 'expect_key'
-        elif x == '=' and len(current_value) == 1:  # oops it's actually a key
-          current_keys.append(current_value[0])
+        elif x in GameData.predicate_chars and len(current_value) == 1:  
+          # oops it's actually a key
+          current_key_name = current_value[0]
           current_value = ''
-          temp_string = ''
-          state = 'expect_value'
+          temp_string = x
+          state = 'predicate'
         elif x == '#':
           saved_state = 'list'
           state = 'comment'
@@ -997,6 +1028,8 @@ class GameData(object):
       
       for keys, value in self.parse_ck2_data(file_contents, debug,  \
                                              empty_values=True):
+        keys = zip(*keys)[0]
+
         if len(keys) == 3 and keys[0] == 'spriteTypes'  \
            and keys[1] == 'spriteType':
           if current_object is None:
@@ -1089,6 +1122,8 @@ class GameData(object):
       file_contents = self.read_file(filename, location, debug)
 
       for keys, value in self.parse_ck2_data(file_contents, debug):
+        keys = zip(*keys)[0]
+
         if len(keys) >= 2 and self.is_integer(keys[0]):
           id = int(keys[0])
 
@@ -1127,6 +1162,8 @@ class GameData(object):
       group_graphics = {}
 
       for keys, value in self.parse_ck2_data(file_contents, debug):
+        keys = zip(*keys)[0]
+
         if len(keys) == 3 and keys[1] not in self.culture_map:
           culture = Culture()
           culture.id = keys[1]
@@ -1177,6 +1214,8 @@ class GameData(object):
       file_contents = self.read_file(filename, location, debug)
 
       for keys, value in self.parse_ck2_data(file_contents, debug):
+        keys = zip(*keys)[0]
+
         if len(keys) == 3 and keys[1] not in self.religion_map:
           religion = Religion()
           religion.id = keys[1]
@@ -1203,6 +1242,9 @@ class GameData(object):
 
       for keys, value in self.parse_ck2_data(file_contents, debug,  \
                                              empty_values=True):
+        if len(keys) > 0:   # Because of a typo in landed_titles.txt
+          keys = zip(*keys)[0]
+
         if len(keys) > 1 and keys[-2] not in self.title_map:
           title = Title()
           title.id = keys[-2]
@@ -1260,6 +1302,8 @@ class GameData(object):
       file_contents = self.read_file(filename, location, debug)
 
       for keys, value in self.parse_ck2_data(file_contents, debug):
+        keys = zip(*keys)[0]
+
         if len(keys) == 3 and keys[1] not in self.government_map:
           self.government_map[keys[1]] = ''
 
@@ -1422,6 +1466,8 @@ class GameData(object):
     title_holder = 0
 
     for keys, value in self.parse_ck2_data(file_contents, debug, is_save=True):
+      keys = zip(*keys)[0]
+
       if len(keys) == 2 and keys[0] == 'player' and keys[1] == 'id'  \
          and self.is_integer(value):
         self.player_id = int(value)
