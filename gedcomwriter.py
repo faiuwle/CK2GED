@@ -47,7 +47,11 @@ class GedcomWriter(object):
 
       if generate_parents:
         character.loner = False
-        temp = (father_id, mother_id)
+
+        if father_id < mother_id:
+          temp = (father_id, mother_id)
+        else:
+          temp = (mother_id, father_id)
 
         if temp not in self.family_map:
           family = Family()
