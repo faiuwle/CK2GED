@@ -82,9 +82,15 @@ class GedcomWriter(object):
 
           character.loner = False
 
-          if character.gender == 1 and spouse.gender == 0:
+          #if character.gender == 1 and spouse.gender == 0:
+          #  temp = (c, s)
+          #elif character.gender == 0 and spouse.gender == 1:
+          #  temp = (s, c)
+          #else:
+          #  continue
+          if character.id < spouse.id:
             temp = (c, s)
-          elif character.gender == 0 and spouse.gender == 1:
+          elif character.id > spouse.id:
             temp = (s, c)
           else:
             continue
@@ -92,8 +98,14 @@ class GedcomWriter(object):
           if temp not in self.family_map:
             family = Family()
             family.id = family_id
-            family.father = temp[0]
-            family.mother = temp[1]
+
+            if character.gender == 1:
+              family.father = character.id
+              family.mother = spouse.id
+            else:
+              family.father = spouse.id
+              family.mother = character.id
+
             self.family_map[temp] = family
 
             character.FAMS.append(family_id)

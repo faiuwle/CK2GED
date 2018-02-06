@@ -453,7 +453,8 @@ class Character(object):
     self.title_history.gender = self.gender
     self.title_history.independent = self.independent
 
-    if self.culture.dynasty_name_first and self.dynasty_name != '':
+    if self.culture is not None and self.culture.dynasty_name_first  \
+      and self.dynasty_name != '' and self.dynasty_name != self.birth_name:
       self.title_history.name = self.dynasty_name + ' ' + self.regnal_name
     else:
       self.title_history.name = self.regnal_name

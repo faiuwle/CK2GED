@@ -45,8 +45,10 @@ def main():
       raise
     else:
       print 'Error reading save file.'
-      print 'Please post to the Paradox Interactive Forums thread, upload',
-      print 'your save and note any mods you are using.'
+      print 'Please ensure that your save is COMPRESSED and UNENCRYPTED.'
+      print 'If that is not the problem, please post to the Paradox',
+      print 'Interactive Forums thread, upload your save and note any mods' 
+      print 'you are using.'
       sys.stdin.readline()
       sys.exit()
 
