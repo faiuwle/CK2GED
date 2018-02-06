@@ -1228,7 +1228,7 @@ class GameData(object):
 
     try:
       file_contents = self.read_file(filename, filename, debug)
-    except BadZipFile:
+    except zipfile.BadZipfile:
       file_contents = self.read_file(filename, '', debug)
 
     date = []
