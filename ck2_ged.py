@@ -80,5 +80,22 @@ def main():
       sys.stdin.readline()
       sys.exit()
 
+  num_titles = [0, 0, 0, 0, 0, 0, 0, 0]
+
+  for t in game_data.title_map:
+    if '_dyn_' in t:
+      continue
+
+    num_titles[game_data.title_map[t].rank] += 1
+    if game_data.title_map[t].rank == 0:
+      print t
+
+  print num_titles[0], 'empires'
+  print num_titles[1] + num_titles[6], 'kingdoms'
+  print num_titles[2] + num_titles[5], 'duchies'
+  print num_titles[3], 'counties'
+  print num_titles[4], 'holdings',
+  print num_titles[7], 'unidentified'
+
 if __name__ == '__main__':
   main()

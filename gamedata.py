@@ -468,6 +468,7 @@ class Character(object):
     self.culture = None
     self.graphical_culture = None
     self.religion = None
+    self.traits = []
     self.father = ''
     self.real_father = ''
     self.mother = ''
@@ -738,6 +739,7 @@ class GameData(object):
     current_key_name = ''
     current_value = ''
     current_line = 1
+    trace = False
   
     if is_save:
       state = 'begin'
@@ -762,6 +764,11 @@ class GameData(object):
 
       if x == '\n':
         current_line += 1
+
+      if trace and debug:
+        debug_file.write('state=' + state + ', x=' + x + ', temp_string='  \
+                         + temp_string + ', key=' + current_key_name  \
+                         + ', keys=' + repr(current_keys) + '\n')
         
       if state == 'begin':
         if temp_string == 'CK2txt':
@@ -774,6 +781,7 @@ class GameData(object):
         if x == '}' and len(current_keys) > 0:
           if empty_values:
             yield (current_keys, current_value)
+            trace = False
           current_keys = current_keys[:-1]
         elif x == '{':
           current_keys.append(('', ''))
@@ -786,6 +794,7 @@ class GameData(object):
         elif x in GameData.special_chars and debug:
           debug_file.write('Unexpected character ' + x + ' on line '  \
                            + repr(current_line) + ' (expect_key)\n')
+          #trace = True
         elif x not in GameData.whitespace:
           temp_string = x
           state = 'key'
@@ -798,6 +807,7 @@ class GameData(object):
         elif x == '}':      # e.g. societies={2}
           current_value = [temp_string]
           yield (current_keys, current_value)
+          trace = False
           temp_string = ''
           current_value = ''
           if len(current_keys) > 0:
@@ -859,6 +869,7 @@ class GameData(object):
           current_value = temp_string
           temp_string = ''
           yield (current_keys, current_value)
+          trace = False
           current_value = ''
           if len(current_keys) > 0:
             current_keys = current_keys[:-1]
@@ -869,6 +880,7 @@ class GameData(object):
           current_value = temp_string
           temp_string = ''
           yield (current_keys, current_value)
+          trace = False
           current_value = ''
           if len(current_keys) > 0:
             current_keys = current_keys[:-1]
@@ -878,6 +890,7 @@ class GameData(object):
           current_value = temp_string
           temp_string = ''
           yield (current_keys, current_value)
+          trace = False
           current_value = ''
           if len(current_keys) > 0:
             current_keys = current_keys[:-1]
@@ -894,6 +907,7 @@ class GameData(object):
           current_value = temp_string
           temp_string = ''
           yield (current_keys, current_value)
+          trace = False
           current_value = ''
           if len(current_keys) > 0:
             current_keys = current_keys[:-1]
@@ -904,6 +918,7 @@ class GameData(object):
       elif state == 'list':
         if x == '}':
           yield (current_keys, current_value)
+          trace = False
           current_value = ''
           if len(current_keys) > 0:
             current_keys = current_keys[:-1]
@@ -932,6 +947,7 @@ class GameData(object):
           current_value.append(temp_string)
           temp_string = ''
           yield (current_keys, current_value)
+          trace = False
           current_value = ''
           if len(current_keys) > 0:
             current_keys = current_keys[:-1]
@@ -1235,6 +1251,8 @@ class GameData(object):
       print ' ##########################################'
 
     self.title_map = {}
+    title_counts = [0, 0, 0, 0, 0, 0, 0, 0]
+    titles_file = open('titles.txt', 'w')
     debug = self.debug_all or self.debug_landed_titles
 
     for filename, location in self.game_files.landed_titles:
@@ -1242,8 +1260,12 @@ class GameData(object):
 
       for keys, value in self.parse_ck2_data(file_contents, debug,  \
                                              empty_values=True):
+        #titles_file.write(repr(keys) + '\n')
+
         if len(keys) > 0:   # Because of a typo in landed_titles.txt
           keys = zip(*keys)[0]
+
+        #titles_file.write(repr(keys) + '\n')
 
         if len(keys) > 1 and keys[-2] not in self.title_map:
           title = Title()
@@ -1261,6 +1283,8 @@ class GameData(object):
             rank = COUNT
           if keys[-2].startswith('b_'):
             rank = BARON
+
+          title_counts[rank] += 1
 
           title.rank = rank
           self.title_map[keys[-2]] = title
@@ -1287,6 +1311,10 @@ class GameData(object):
           title.rank = BARON
           self.title_map[keys[-1]] = title
 
+          title_counts[BARON] += 1
+
+    #print title_counts
+    
   def read_governments(self):
     if len(self.game_files.governments) == 0:
       print ''
@@ -1544,6 +1572,8 @@ class GameData(object):
         elif keys[2] == 'rel':
           if value in self.religion_map:
             character.religion = self.religion_map[value]
+        elif keys[2] == 'traits':
+          character.traits = value
         elif keys[2] == 'fat' and self.is_integer(value):
           character.father = int(value)
         elif keys[2] == 'rfat' and self.is_integer(value):
