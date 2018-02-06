@@ -1224,10 +1224,12 @@ class GameData(object):
     self.player_id = -1
     debug = self.debug_all or self.debug_save
 
-    location = filename
     filename = os.path.basename(filename)
 
-    file_contents = self.read_file(filename, location, debug)
+    try:
+      file_contents = self.read_file(filename, filename, debug)
+    except BadZipFile:
+      file_contents = self.read_file(filename, '', debug)
 
     date = []
     title_id = ''

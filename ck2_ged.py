@@ -45,7 +45,7 @@ def main():
       raise
     else:
       print 'Error reading save file.'
-      print 'Please ensure that your save is COMPRESSED and UNENCRYPTED.'
+      print 'Please ensure that your save is UNENCRYPTED.'
       print 'If that is not the problem, please post to the Paradox',
       print 'Interactive Forums thread, upload your save and note any mods' 
       print 'you are using.'
