@@ -1374,7 +1374,7 @@ class GameData(object):
 
         if len(keys) == 3 and keys[1].startswith('b_')  \
            and not keys[1].startswith('b_dyn_') and keys[2] == 'holder'  \
-           and self.is_integer(value):
+           and self.is_integer(value) and int(value) in self.character_map:
           title_history = self.character_map[int(value)].title_history
           title_history.add_title(self.title_map[keys[1]],  \
                                   Range(Date(), Date()), True)
