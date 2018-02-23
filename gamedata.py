@@ -57,8 +57,13 @@ class Date(object):
   def gedcom_string(self):
     if self.is_null():
       return ''
-    return str(self.day) + ' ' + Date.gedcom_month_name[self.month-1] + ' '  \
-           + str(self.year)
+    
+    s = str(self.day) + ' ' + Date.gedcom_month_name[self.month-1] + ' '
+
+    if self.year < 1000:
+      return s + '0' + str(self.year)
+    else:
+      return s + str(self.year)
 
 class Range(object):
   def __init__(self, first, second):
