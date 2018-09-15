@@ -3,3 +3,7 @@
 *.pyc
 *.swp
 parse.log
+*.uncompressed
+*.tar.gz
+*.bak
+*.rar

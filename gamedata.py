@@ -738,7 +738,7 @@ class GameData(object):
         saved_state = ''
         temp_string = ''
 
-        chars_per_increment = len(data) / 80 + 1
+        chars_per_increment = int(len(data) / 80) + 1
         chars_until_progress = chars_per_increment
 
         if debug:
@@ -747,7 +747,7 @@ class GameData(object):
         for x in data:
             chars_until_progress -= 1
             if chars_until_progress == 0:
-                sys.stdout.write('=')
+                print('=', end='')
                 sys.stdout.flush()
                 chars_until_progress = chars_per_increment
 
@@ -1536,12 +1536,13 @@ class GameData(object):
             and title_holder in self.character_map):
             character = self.character_map[title_holder]
             r = Range(title_date, date)
-            character.title_history.add_title(self.title_map[title_id], r, True)
+            character.title_history.add_title(self.title_map[title_id], r, 
+                                              True)
 
             if character.title_history.primary == title_id:
                 character.independent = self.title_map[title_id].independent
 
-            self.title_map[title_id].assign_regnal_numbers(self.character_map,  \
+            self.title_map[title_id].assign_regnal_numbers(self.character_map,
                                                            self.name_map)
 
         for c in self.character_map:
@@ -1551,17 +1552,18 @@ class GameData(object):
         while True:
             print('Possible modes:')
             print('1) Entire tree (warning: probably very large)')
-            print('2) Your dynasty members, their spouses, their parents, and'
-                  ' all of their descendants')
-            print('3) Your dynasty members, their spouses, their parents, and'
-                  ' their children')
-            print('4) Your dynasty members, and their spouses and parents (for'
-                  ' very large dynasties)')
+            print('2) Your dynasty members, their spouses, their parents, and')
+            print('   all of their descendants')
+            print('3) Your dynasty members, their spouses, their parents, and')
+            print('   their children')
+            print('4) Your dynasty members, and their spouses and parents') 
+            print('   (for very large dynasties)')
             print('Enter a number: ', end=' ')
             mode = sys.stdin.readline().strip()
             try:
                 mode = int(mode)
-                break
+                if 1 <= mode <= 4:
+                    break
             except ValueError:
                 print('Please enter a number.')
 
@@ -1591,7 +1593,8 @@ class GameData(object):
             for c in self.character_map:
                 character = self.character_map[c]
 
-                if real_fathers and character.father in self.character_map:
+                if (real_fathers 
+                    and character.real_father in self.character_map):
                     father_id = character.real_father
                 else:
                     father_id = character.father
