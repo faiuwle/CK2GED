@@ -57,6 +57,24 @@ def main():
         sys.stdin.readline()
         sys.exit()
 
+    player_id = game_data.player_id
+    character_map = game_data.character_map
+    title_map = game_data.title_map
+    history = character_map[player_id].get_title_history(character_map, title_map)
+    for line in history:
+        print(line)
+
+    while True:
+        print('>', end=' ')
+        char_id = sys.stdin.readline().strip()
+        try:
+            char_id = int(char_id)
+        except ValueError:
+            break
+        history = character_map[char_id].get_title_history(character_map, title_map)
+        for line in history:
+            print(line)
+
     gedcom_writer = GedcomWriter()
 
     try:

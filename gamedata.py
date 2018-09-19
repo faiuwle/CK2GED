@@ -3,6 +3,8 @@ import zipfile
 import os.path
 from os import listdir
 from string import digits, whitespace
+from collections import defaultdict
+from itertools import groupby
 
 # Title ranks
 NONE = 7
@@ -37,6 +39,8 @@ class Date(object):
             self.month = 1
         if self.month > 12:
             self.month = 12
+        if self.day < 1:
+            self.day = 1
 
     def is_null(self):
         return (self.year < 1 or self.month < 1 or self.month > 12
@@ -80,7 +84,8 @@ class Date(object):
 
     def __str__(self):
         if self.is_null():
-            return ''
+            return ('Invalid date: ' + str(self.year) + '.' + str(self.month)
+                    + '.' + str(self.day))
         return (Date.full_month_name[self.month-1] + ' ' + str(self.day) + ' '
                 + str(self.year))
 
@@ -227,12 +232,67 @@ class Title(object):
             else:
                 first_of_name[name] = h
 
+    def get_full_name(self):
+        if self.rank == COUNT:
+            text = 'County of '
+        elif self.rank == DUKE:
+            text = 'Duchy of '
+        elif self.rank == KING:
+            text = 'Kingdom of '
+        elif self.rank == EMPEROR:
+            text = 'Empire of '
+        else:
+            text = ''
+
+        return text + self.name
+
+class TitleOwnership(object):
+    def __init__(self, date_range):
+        self.held_range = date_range
+        self.gain_type = ''
+        self.from_whom = 0
+        self.lose_type = ''
+        self.to_whom = 0
+        self.current_owner = False
+        self.exclude_from_history = False
+
 class TitleHistory(object):
     rank_names = {}  # static member populated by GameData
 
     arabic = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
     roman = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV',
              'I']
+
+    gain_text = {'claim': 'conquered {0} as a claimant, taking {2} from {1}',
+                 'host': 'conquered {0} as an adventurer, taking {2} from {1}',
+                 'revolt': 'conquered {0} as a leader of a decadence revolt,'
+                           ' taking {2} from {1}',
+                 'usurp': 'peacefully usurped {0} from {1}',
+                 'faction_demand': 'was installed as the ruler of {0} by'
+                                   ' faction demand, taking {2} from {1}',
+                 'inheritance': 'inherited {0} from {1}',
+                 'invasion': 'conquered {0} in war, taking {2} from {1}',
+                 'created': 'created {0}',
+                 'election': 'was elected ruler of {0} after the death of {1}',
+                 'revoke': 'revoked {0} from {1}',
+                 'grant': 'was granted {0} by {1}',
+                 'holy_war': 'conquered {0} in a holy war, taking {2} from {1}',
+                 '': 'gained {0} from {1} in an unknown manner'}
+
+    lose_text = {'claim': 'lost {0} to a {1}, a claimant',
+                 'host': 'lost {0} to {1}, an adventurer',
+                 'revolt': 'lost {0} to a decadence revolt lead by {1}',
+                 'usurp': 'had {0} peacefully usurped by {1}',
+                 'faction_demand': 'lost {0} when a faction installed {1}',
+                 'inheritance': 'passed {0} on to {1}, the rightful heir',
+                 'invasion': 'lost {0} to {1} in a war',
+                 'created': 'error displaying loss of {0} to {1}',
+                 'election': 'passed {0} on to {1}, the rightfully elected'
+                             ' heir',
+                 'revoke': 'had {0} revoked by {1}',
+                 'grant': 'granted {0} to {1}',
+                 'holy_war': 'lost {0} to {1} in a holy war',
+                 '': 'destroyed {0} or lost {2} in an unknown way'}
 
     def __init__(self):
         self.titles = {}
@@ -244,11 +304,11 @@ class TitleHistory(object):
         self.religion = Religion()
         self.government = ''
 
-    def add_title(self, title, r, primary_eligible):
+    def add_title(self, title, ownership, primary_eligible):
         if title.id in self.titles:
-            self.titles[title.id].append(r)
+            self.titles[title.id].append(ownership)
         else:
-            self.titles[title.id] = [r]
+            self.titles[title.id] = [ownership]
         if (not self.primary_set and primary_eligible
             and title.rank < self.highest_rank):
             self.highest_rank = title.rank
@@ -260,14 +320,14 @@ class TitleHistory(object):
                 self.primary = t
                 break
 
-
-    def int_to_roman(self, number):
+    @classmethod
+    def int_to_roman(cls, number):
         result = ''
 
-        for i in range(len(TitleHistory.arabic)):
-            count = int(number / TitleHistory.arabic[i])
-            result += TitleHistory.roman[i] * count
-            number -= TitleHistory.arabic[i] * count
+        for i in range(len(cls.arabic)):
+            count = int(number / cls.arabic[i])
+            result += cls.roman[i] * count
+            number -= cls.arabic[i] * count
 
         return result
 
@@ -356,7 +416,9 @@ class TitleHistory(object):
         for t in title_list:
             history = self.titles[t.id]
 
-            for r in history:
+            for ownership in history:
+                r = ownership.held_range
+
                 if r.is_null():
                     continue
 
@@ -474,11 +536,93 @@ class TitleHistory(object):
         else:
             return 'Countess'
 
+    @classmethod
+    def format_lose_gain_text(cls, gain, succ_type, other, titles):
+        if other.culture is not None and other.culture.dynasty_name_first:
+            other_text = other.dynasty_name + ' ' + other.birth_name
+        else:
+            other_text = other.birth_name + ' ' + other.dynasty_name
+        other_text += ' (' + str(other.id) + ')'
+
+        title_text = ''
+        titles.sort()
+        for i, title in enumerate(titles):
+            title_text += title.get_full_name()
+            if i == (len(titles) - 2):
+                title_text += ' and '
+            elif i < (len(titles) - 2):
+                title_text += ', '
+
+        it_them = 'it' if len(titles) == 1 else 'them'
+
+        if succ_type not in TitleHistory.gain_text:
+            succ_type = ''
+
+        if gain:
+            return cls.gain_text[succ_type].format(
+                title_text, other_text, it_them
+            )
+        else:
+            return cls.lose_text[succ_type].format(
+                title_text, other_text, it_them
+            )
+
+    def generate_title_history(self, character_map, title_map):
+        tuple_map = defaultdict(list)
+        for title in self.titles:
+            for ownership in self.titles[title]:
+                if ownership.exclude_from_history:
+                    continue
+
+                gain_date = ownership.held_range.start
+                lose_date = ownership.held_range.end
+                gain_key = (gain_date.year, gain_date.month, gain_date.day)
+                lose_key = (lose_date.year, lose_date.month, lose_date.day)
+
+                tuple_map[gain_key].append(
+                    (True, ownership.from_whom, ownership.gain_type, title)
+                )
+                if not ownership.current_owner:
+                    tuple_map[lose_key].append(
+                        (False, ownership.to_whom, ownership.lose_type, title)
+                    )
+
+        string_map = defaultdict(list)
+        for (y, m, d) in tuple_map:
+            event_list = tuple_map[(y, m, d)]
+            event_list = sorted(event_list, key=lambda x: (x[0], x[1], x[2]))
+            for k, g in groupby(event_list, lambda x: (x[0], x[1], x[2])):
+                titles = [title_map[x[3]] for x in g]
+                if k[1] in character_map:
+                    other = character_map[k[1]]
+                else:
+                    other = Character()
+                text = self.format_lose_gain_text(k[0], k[2], other, titles)
+                string_map[(y, m, d)].append(text)
+
+        string_list = string_map.items()
+        string_list = sorted(string_list, key=lambda x: x[0])
+        final_list = []
+        for date_parts, text_list in string_list:
+            date = Date()
+            date.set_date(date_parts)
+            for text in text_list:
+                lines = []
+                whole = 'On ' + str(date) + ', ' + self.name + ' ' + text
+                while len(whole) > 76:
+                    next_split = whole.rfind(' ', 0, 76)
+                    lines.append('    ' + whole[0:next_split+1])
+                    whole = whole[next_split+1:]
+                lines.append('    ' + whole)
+                lines[0] = lines[0][4:]
+                final_list += lines
+
+        return final_list
 
 class Character(object):
     """Stores information relevant to a character."""
     def __init__(self):
-        self.id = [] #Game ID
+        self.id = -1 #Game ID
         self.birth_name = ''
         self.regnal_name = ''
         self.nickname = ''
@@ -530,6 +674,11 @@ class Character(object):
 
     def get_years_of_rule(self, title_map):
         return self.title_history.get_years_of_rule(title_map)
+
+    def get_title_history(self, character_map, title_map):
+        return self.title_history.generate_title_history(
+            character_map, title_map
+        )
 
 
 class GameFiles(object):
@@ -696,7 +845,8 @@ class GameData(object):
         self.read_governments()
         self.read_localization()
 
-    def parse_date(self, date_string):
+    @staticmethod
+    def parse_date(date_string):
         parts = date_string.split('.')
         if len(parts) != 3:
             return []
@@ -708,14 +858,16 @@ class GameData(object):
         date.set_date(int_parts)
         return date
 
-    def is_integer(self, string):
+    @staticmethod
+    def is_integer(string):
         for c in string:
             if c not in digits:
                 return False
 
         return True
 
-    def guess_title_name(self, title_id):
+    @staticmethod
+    def guess_title_name(title_id):
         parts = title_id.split('_')
 
         for i, p in enumerate(parts):
@@ -723,8 +875,8 @@ class GameData(object):
 
         return ' '.join(parts[1:])
 
-
-    def parse_ck2_data(self, data, debug=False, is_save=False, 
+    @classmethod
+    def parse_ck2_data(cls, data, debug=False, is_save=False, 
                        empty_values=False):
         current_keys = []
         current_value = ''
@@ -771,7 +923,7 @@ class GameData(object):
                 elif x == '#':
                     saved_state = 'expect_key'
                     state = 'comment'
-                elif x in GameData.special_chars and debug:
+                elif x in cls.special_chars and debug:
                     debug_file.write('Unexpected character ' + x + ' on line '
                                      + repr(current_line) + ' (expect_key)')
                 elif x not in whitespace:
@@ -791,7 +943,7 @@ class GameData(object):
                     if len(current_keys) > 0:
                         current_keys = current_keys[:-1]
                     state = 'expect_key'
-                elif x in GameData.special_chars and debug:
+                elif x in cls.special_chars and debug:
                     debug_file.write('Unexpected character in key: ' + x + 
                                      ' on line ' + repr(current_line) + 
                                      ' (key)')
@@ -808,7 +960,7 @@ class GameData(object):
                     temp_string = ''
                 elif x == '{':
                     state = 'expect_key'
-                elif x in GameData.special_chars and debug:
+                elif x in cls.special_chars and debug:
                     debug_file.write('Unexpected character ' + x + ' on line '
                                      + repr(current_line) + ' (expect_value)')
                 elif x not in whitespace:
@@ -844,7 +996,7 @@ class GameData(object):
                         current_keys = current_keys[:-1]
                     saved_state = 'expect_key'
                     state = 'comment'
-                elif x in GameData.special_chars and debug:
+                elif x in cls.special_chars and debug:
                     debug_file.write('Unexpected character ' + x + ' on line '
                                      + current_line + ' (value)')
                 else:
@@ -881,7 +1033,7 @@ class GameData(object):
                 elif x == '"':
                     state = 'quoted_list_item'
                     temp_string = ''
-                elif x in GameData.special_chars and debug:
+                elif x in cls.special_chars and debug:
                     debug_file.write('Unexpected character ' + x + ' on line '
                                      + repr(current_line) + ' (list)')
                 elif x not in whitespace:
@@ -906,7 +1058,7 @@ class GameData(object):
                     temp_string = ''
                     saved_state = 'list'
                     state = 'comment'
-                elif x in GameData.special_chars and debug:
+                elif x in cls.special_chars and debug:
                     debug_file.write('Unexpected character ' + x + ' on line '
                                      + repr(current_line) + ' (list_item)')
                 else:
@@ -930,7 +1082,8 @@ class GameData(object):
         if debug:
             debug_file.close()
 
-    def read_file(self, filename, location, debug):
+    @staticmethod
+    def read_file(filename, location, debug):
         if location == '':
             print('### Now reading', filename, '###')
 
@@ -1313,6 +1466,8 @@ class GameData(object):
         title_id = ''
         title_date = []
         title_holder = 0
+        prev_holder = 0
+        succession_type = ''
 
         for keys, value in self.parse_ck2_data(file_contents, debug, 
                                                is_save=True):
@@ -1450,16 +1605,18 @@ class GameData(object):
                     title.rank = rank
                     self.title_map[keys[1]] = title
 
-                if keys[2] == 'name':
+                if keys[2] == 'name' and self.title_map[keys[1]].name == '':
                     self.title_map[keys[1]].name = value
 
                 if (len(keys) == 3 and keys[1].startswith('b_')
                     and not keys[1].startswith('b_dyn_') and keys[2] == 'holder'
                     and self.is_integer(value) 
                     and int(value) in self.character_map):
+                    ownership = TitleOwnership(Range(Date(), Date()))
+                    ownership.exclude_from_history = True
                     title_history = self.character_map[int(value)].title_history
                     title_history.add_title(self.title_map[keys[1]],
-                                            Range(Date(), Date()), True)
+                                            ownership, True)
 
                 if keys[2] == 'liege':
                     self.title_map[keys[1]].independent = False
@@ -1467,20 +1624,51 @@ class GameData(object):
                 if keys[2] == 'vice_royalty' and value == 'yes':
                     self.title_map[keys[1]].viceroyalty = True
 
+                if (keys[2] == 'holding_dynasty' and self.is_integer(value)
+                    and int(value) in self.dynasty_map):
+                    dynasty_name = self.dynasty_map[int(value)].name
+                    self.title_map[keys[1]].name = 'House ' + dynasty_name
+
                 if (len(keys) >= 5 and keys[2] == 'history' 
                     and keys[4] == 'holder'):
-                    if len(keys) == 6 and keys[5] == 'type':
+                    parsed_date = self.parse_date(keys[3])
+
+                    # We're still on the same date as last iteration
+                    if (keys[1] == title_id and type(parsed_date) == Date 
+                        and type(title_date) == Date 
+                        and parsed_date == title_date and len(keys) == 6):
+                        if (keys[5] in ['character', 'who']
+                            and self.is_integer(value)):
+                            title_holder = int(value)
+                        elif keys[5] == 'type':
+                            succession_type = value
                         continue
 
+                    # Past this point, we have come to a new date, so we need
+                    # to store information collected for the last date
                     if title_id != '':
                         title = self.title_map[title_id]
 
+                    # Set previous owner's TitleOwnership correctly
+                    if title_id != '' and  prev_holder in self.character_map:
+                        history = self.character_map[prev_holder].title_history
+                        ownership = history.titles[title_id][-1]
+                        ownership.lose_type = succession_type
+                        ownership.to_whom = title_holder
+
+                    # Not only a new date, but also a new title - finalize the
+                    # last holder of the previous title
                     if (title_id != '' and title_id != keys[1]
                         and type(title_date) == Date
                         and title_holder in self.character_map):
                         character = self.character_map[title_holder]
-                        r = Range(title_date, date)
-                        character.title_history.add_title(title, r, True)
+                        ownership = TitleOwnership(Range(title_date, date))
+                        ownership.gain_type = succession_type
+                        ownership.from_whom = prev_holder
+                        ownership.current_owner = True
+                        character.title_history.add_title(title, ownership, 
+                                                          True)
+                        prev_holder = 0
 
                         if character.title_history.primary == title_id:
                             character.independent = title.independent
@@ -1489,23 +1677,30 @@ class GameData(object):
                         title.assign_regnal_numbers(self.character_map, 
                                                     self.name_map)
 
-                    elif (title_id != '' 
-                          and type(self.parse_date(keys[3])) == Date
+                    # Otherwise, this is just the next date in the same title
+                    elif (title_id != '' and type(parsed_date) == Date
                           and type(title_date) == Date
                           and title_holder in self.character_map):
                         character = self.character_map[title_holder]
-                        r = Range(title_date, self.parse_date(keys[3]))
-                        character.title_history.add_title(title, r, False)
+                        r = Range(title_date, parsed_date)
+                        ownership = TitleOwnership(r)
+                        ownership.gain_type = succession_type
+                        ownership.from_whom = prev_holder
+                        character.title_history.add_title(title, ownership, 
+                                                          False)
+                        prev_holder = title_holder
                         title.holders.append(title_holder)
 
-                    if (title_id.startswith('b_dyn_') 
+                    # Some checks to assign title names to patrician houses and
+                    # non-de-jure nomad titles
+                    # All b_dyn_ titles with histories are patrician houses
+                    if (title_id.startswith('b_dyn_')
                         and title.rank_name[1] is None
                         and title_holder in self.character_map):
-                        character = self.character_map[title_holder]
-                        dynasty_name = character.dynasty_name
-                        title.name = 'House ' + dynasty_name
                         title.rank_name[1] = 'Patrician'
 
+                    # k_dyn_ and e_dyn_ titles with nomadic holders are nomad
+                    # clans and khaganates
                     if ((title_id.startswith('k_dyn_') 
                          or title_id.startswith('e_dyn'))
                         and title.name == '' 
@@ -1520,24 +1715,39 @@ class GameData(object):
                             else:
                                 title.name = dynasty_name + ' Khaganate'
 
+                    # Update information for next iteration
                     title_id = keys[1]
-                    title_date = self.parse_date(keys[3])
+                    title_date = parsed_date
+                    succession_type = ''
 
                     if len(keys) == 5 and self.is_integer(value):
                         title_holder = int(value)
-                    elif (len(keys) == 6 and (keys[5] == 'character' 
-                                              or keys[5] == 'who')
+                        if title_holder == 0:
+                            prev_holder = 0
+                    elif (len(keys) == 6 and keys[5] in ['character', 'who']
                           and self.is_integer(value)):
                         title_holder = int(value)
-                    else:
-                        title_holder = 0
+                        if title_holder == 0:
+                            prev_holder = 0
+                    elif len(keys) == 6 and keys[5] == 'type':
+                        succession_type = value
+
+        # Record information for the last title holder
+        if title_id != '' and prev_holder in self.character_map:
+            history = self.character_map[prev_holder].title_history
+            ownership = history.titles[title_id][-1]
+            ownership.lose_type = succession_type
+            ownership.to_whom = title_holder
 
         if (title_id != '' and type(title_date) == Date
             and title_holder in self.character_map):
             character = self.character_map[title_holder]
-            r = Range(title_date, date)
-            character.title_history.add_title(self.title_map[title_id], r, 
-                                              True)
+            ownership = TitleOwnership(Range(title_date, date))
+            ownership.gain_type = succession_type
+            ownership.from_whom = prev_holder
+            ownership.current_owner = True
+            character.title_history.add_title(self.title_map[title_id], 
+                                              ownership, True)
 
             if character.title_history.primary == title_id:
                 character.independent = self.title_map[title_id].independent
