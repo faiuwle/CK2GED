@@ -258,6 +258,7 @@ class TitleOwnership(object):
 
 class TitleHistory(object):
     rank_names = {}  # static member populated by GameData
+    realm_names = {}  # static member populated by GameData
 
     arabic = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
     roman = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV',
@@ -279,7 +280,7 @@ class TitleHistory(object):
                  'holy_war': 'conquered {0} in a holy war, taking {2} from {1}',
                  '': 'gained {0} from {1} in an unknown manner'}
 
-    lose_text = {'claim': 'lost {0} to a {1}, a claimant',
+    lose_text = {'claim': 'lost {0} to {1}, a claimant',
                  'host': 'lost {0} to {1}, an adventurer',
                  'revolt': 'lost {0} to a decadence revolt lead by {1}',
                  'usurp': 'had {0} peacefully usurped by {1}',
@@ -536,18 +537,63 @@ class TitleHistory(object):
         else:
             return 'Countess'
 
-    @classmethod
-    def format_lose_gain_text(cls, gain, succ_type, other, titles):
-        if other.culture is not None and other.culture.dynasty_name_first:
+    def get_realm_name(self, rank):
+        if rank >= BARON:
+            return ''
+
+        if self.government == 'temple':
+            culture_religion = self.religion
+        else:
+            culture_religion = self.culture
+
+        if self.government in TitleHistory.realm_names:
+            r = TitleHistory.realm_names[self.government][rank]
+
+            if culture_religion.id in r:
+                return r[culture_religion.id]
+            elif culture_religion.group in r:
+                return r[culture_religion.group]
+            elif '' in r:
+                return r['']
+
+        if '' in TitleHistory.realm_names:
+            r = TitleHistory.realm_names[''][rank]
+
+            if culture_religion.id in r:
+                return r[culture_religion.id]
+            elif culture_religion.group in r:
+                return r[culture_religion.group]
+            elif '' in r:
+                return r['']
+
+        return ''
+
+    def format_lose_gain_text(self, gain, succ_type, other, titles):
+        if other.id == -1:
+            other_text = 'an unknown person'
+        elif other.culture is not None and other.culture.dynasty_name_first:
             other_text = other.dynasty_name + ' ' + other.birth_name
         else:
             other_text = other.birth_name + ' ' + other.dynasty_name
-        other_text += ' (' + str(other.id) + ')'
+        if other.id > 0:
+            other_text += ' (' + str(other.id) + ')'
 
         title_text = ''
         titles.sort()
         for i, title in enumerate(titles):
-            title_text += title.get_full_name()
+            rank = title.rank
+            if title.viceroyalty:
+                if rank == DUKE:
+                    rank = VICEDUKE
+                elif rank == KING:
+                    rank = VICEKING
+
+            realm_name = self.get_realm_name(rank)
+            title_text += '' if len(realm_name) == 0 else realm_name + ' '
+            if self.culture.id in title.cultural_names:
+                title_text += title.cultural_names[self.culture.id]
+            else:
+                title_text += title.name
             if i == (len(titles) - 2):
                 title_text += ' and '
             elif i < (len(titles) - 2):
@@ -559,11 +605,11 @@ class TitleHistory(object):
             succ_type = ''
 
         if gain:
-            return cls.gain_text[succ_type].format(
+            return TitleHistory.gain_text[succ_type].format(
                 title_text, other_text, it_them
             )
         else:
-            return cls.lose_text[succ_type].format(
+            return TitleHistory.lose_text[succ_type].format(
                 title_text, other_text, it_them
             )
 
@@ -1318,6 +1364,7 @@ class GameData(object):
         religions +=  \
             set([self.religion_map[r].group for r in self.religion_map])
         base_rank = ['emperor', 'king', 'duke', 'count', 'baron']
+        realm_rank = ['empire', 'kingdom', 'duchy', 'county', 'barony']
 
         for filename, location in self.game_files.localization:
             try:
@@ -1360,6 +1407,62 @@ class GameData(object):
                 elif key.startswith('nick_'):
                     self.misc_localization[key] = value
 
+                elif '_of_' in key or key.endswith('_of'):
+                    key_realm_rank = NONE
+                    key_gov_type = ''
+                    key_culture_religion = ''
+                    key_viceroyalty = False
+
+                    key_parts = key.split('_')
+                    key_parts_used = []
+                    loc = key_parts.index('of') - 1
+                    if loc >= 0 and key_parts[loc] in realm_rank:
+                        key_realm_rank = realm_rank.index(key_parts[loc])
+                        key_parts_used += [loc, loc + 1]
+                    else:
+                        continue
+
+                    for g in gov_types:
+                        if g in key_parts:
+                            key_gov_type = g
+                            key_parts_used.append(key_parts.index(g))
+
+                    if ('vice' in key_parts and 'royalty' in key_parts
+                        and (key_parts.index('vice') ==
+                             key_parts.index('royalty') - 1)):
+                        key_viceroyalty = True
+                        key_parts_used.append(key_parts.index('vice'))
+                        key_parts_used.append(key_parts.index('royalty')) 
+
+                    remainder = ''
+                    for i, k in enumerate(key_parts):
+                        if i not in key_parts_used:
+                            remainder += k + '_'
+                    remainder = remainder.strip('_')
+                    
+                    if key_gov_type == 'temple' and remainder in religions:
+                        key_culture_religion = remainder
+                    elif key_gov_type != 'temple' and remainder in cultures:
+                        key_culture_religion = remainder
+                    elif remainder != '':
+                        continue
+
+                    if key_viceroyalty:
+                        if key_realm_rank == DUKE:
+                            key_realm_rank = VICEDUKE
+                        elif key_realm_rank == KING:
+                            key_realm_rank = VICEKING
+                        else:
+                            continue
+
+                    if key_gov_type not in TitleHistory.realm_names:
+                        TitleHistory.realm_names[key_gov_type] = [
+                            {}, {}, {}, {}, {}, {}, {}
+                        ]
+
+                    r = TitleHistory.realm_names[key_gov_type][key_realm_rank]
+                    r[key_culture_religion] = value
+
                 else:
                     key_base_rank = NONE
                     key_gov_type = ''
@@ -1395,11 +1498,9 @@ class GameData(object):
                         key_parts_used.append(key_parts.index('royalty'))
 
                     remainder = ''
-
                     for i, k in enumerate(key_parts):
                         if i not in key_parts_used:
                             remainder += k + '_'
-
                     remainder = remainder.strip('_')
 
                     if key_gov_type == 'temple' and remainder in religions:
