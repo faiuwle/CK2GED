@@ -31,6 +31,8 @@ def main():
     print('\nPlease enter the name of your save file, without the .ck2: ', 
 	  end=' ')
     filename = sys.stdin.readline().strip()
+    if filename.endswith('.ck2'):
+        filename = filename[:-4]
 
     print('\n')
 
