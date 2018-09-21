@@ -310,9 +310,9 @@ class TitleHistory(object):
 
         return result
 
-    def get_primary(self, title_map):
+    def get_primary(self, title_map, always=False):
         if self.primary == '':
-            return ''
+            return self.name if always else ''
 
         if self.primary in title_map:
             p = title_map[self.primary]
@@ -515,14 +515,16 @@ class TitleHistory(object):
         else:
             return 'Countess'
 
-    def get_realm_name(self, rank):
+    def get_realm_name(self, rank, cultural_titles):
         if rank >= BARON:
             return ''
 
         if self.government == 'temple':
             culture_religion = self.religion
-        else:
+        elif cultural_titles:
             culture_religion = self.culture
+        else:
+            culture_religion = Culture()
 
         if self.government in TitleHistory.realm_names:
             r = TitleHistory.realm_names[self.government][rank]
@@ -546,7 +548,8 @@ class TitleHistory(object):
 
         return ''
 
-    def format_lose_gain_text(self, gain, succ_type, other, titles):
+    def format_lose_gain_text(self, gain, succ_type, other, titles,
+                              cultural_titles, show_tags):
         if other.id == -1:
             other_text = 'an unknown person'
         elif other.culture is not None and other.culture.dynasty_name_first:
@@ -566,12 +569,15 @@ class TitleHistory(object):
                 elif rank == KING:
                     rank = VICEKING
 
-            realm_name = self.get_realm_name(rank)
+            realm_name = self.get_realm_name(rank, cultural_titles)
             title_text += '' if len(realm_name) == 0 else realm_name + ' '
-            if self.culture.id in title.cultural_names:
+            if self.culture.id in title.cultural_names and cultural_titles:
                 title_text += title.cultural_names[self.culture.id]
             else:
                 title_text += title.name
+            if show_tags:
+                title_text += ' [' + title.id + ']'
+
             if i == (len(titles) - 2):
                 title_text += ' and '
             elif i < (len(titles) - 2):
@@ -591,7 +597,8 @@ class TitleHistory(object):
                 title_text, other_text, it_them
             )
 
-    def generate_title_history(self, character_map, title_map):
+    def generate_title_history(self, character_map, title_map, cultural_titles,
+                               show_tags):
         tuple_map = defaultdict(list)
         for title in self.titles:
             for ownership in self.titles[title]:
@@ -621,7 +628,8 @@ class TitleHistory(object):
                     other = character_map[k[1]]
                 else:
                     other = Character()
-                text = self.format_lose_gain_text(k[0], k[2], other, titles)
+                text = self.format_lose_gain_text(k[0], k[2], other, titles,
+                                                  cultural_titles, show_tags)
                 string_map[(y, m, d)].append(text)
 
         string_list = string_map.items()
@@ -693,8 +701,8 @@ class Character(object):
 
         self.title_history.nickname = self.nickname
 
-    def get_primary_title(self, title_map):
-        return self.title_history.get_primary(title_map)
+    def get_primary_title(self, title_map, always=False):
+        return self.title_history.get_primary(title_map, always)
 
     def get_years_of_rule(self, title_map):
         return self.title_history.get_years_of_rule(title_map)
@@ -703,4 +711,14 @@ class Character(object):
         return self.title_history.generate_title_history(
             character_map, title_map
         )
+    def matches_search(tokens):
+        titles = [t for t in self.title_history.titles 
+                  if len([o for o in self.title_history.titles[t]
+                          if not o.exclude_from_history]) > 0]
+        if len(titles) == 0:
+            return False
 
+        searchable = [self.birth_name, self.regnal_name, self.dynasty_name]
+        searchable += titles
+        searchable = set(searchable)
+        return tokens.issubset(searchable)
