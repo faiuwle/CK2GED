@@ -2,23 +2,34 @@ ck2\_ged for Crusader Kings II
 
     Requires:         Crusader Kings II (version 2.6.3 through 2.8.3.3)   
                       Python (version 3.5+)    
-    Utility version:  2018.09.15
-    Readme version:   2018.09.15    
+    Utility version:  2018.09.22
+    Readme version:   2018.09.22    
 
 ----------------------------------------------------------------------
 Description:
+
+ck2\_ged:
 
 Converts a Crusader Kings II save file (.ck2) into a GEDCOM file
 (.ged). This file can be interpreted by many different genealogy
 software packages, providing the player a way to view the family
 relations occuring within their game.
 
+ck2\_title\_history:
+
+Allows the user to browse personal title histories (histories of which titles
+they held, gained, lost, inherited, conquered, revoked, granted, etc, during
+their lifetimes).  It has a command-line interface.
+
 ----------------------------------------------------------------------
 Instructions:
+
+ck2\_ged:
 
 Place copies of the following files into the same directory:
   - ck2\_ged.py
   - settings.py
+  - datatypes.py
   - gamedata.py
   - gedcomwriter.py
   - The .ck2 file you wish to convert
@@ -33,6 +44,30 @@ you will find a .ged file with the same name as the .ck2 file in the
 directory.
 
 Report any problems to the Paradox Interactive Forums thread: https://forum.paradoxplaza.com/forum/index.php?threads/tool-script-to-export-family-trees-from-your-savefile.1037854/.  I probably need you to upload your save and tell me what mods you are using.
+
+
+ck2\_title\_history:
+
+Place copies of the following files into the same directory:
+  - ck2\_title\_history
+  - settings.py
+  - datatypes.py
+  - gamedata.py
+  - titlehistorybrowser.py
+  - the .ck2 file you wish to browse
+
+Open settings.py and make sure that ck2\_install\_dir and mod\_dir are set to
+your CK@ install directory and the directory where you install mods,
+respectively.  The other options do no matter.
+
+Run ck2\_title\_history, and follow the prompts.  When finished, it will launch
+the title browser interface, where you can type commands and see the results.
+Start by typing "help" to get a help message telling you what commands are
+recognized.  You should then be able to use the browser to browse title
+histories.
+
+Report any problems to the Paradox Interactive Forums thread: https://forum.paradoxplaza.com/forum/index.php?threads/tool-script-to-export-family-trees-from-your-savefile.1037854/.  I probably need you to upload your save and tell me what
+mods you are using, and what you were doing when the problem happened.
 
 ----------------------------------------------------------------------
 Credits:
