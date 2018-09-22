@@ -43,7 +43,7 @@ Run ck2\_ged.py, follow the prompts, and wait a moment. When finished,
 you will find a .ged file with the same name as the .ck2 file in the
 directory.
 
-Report any problems to the Paradox Interactive Forums thread: https://forum.paradoxplaza.com/forum/index.php?threads/tool-script-to-export-family-trees-from-your-savefile.1037854/.  I probably need you to upload your save and tell me what mods you are using.
+Report any problems to the Paradox Interactive Forums thread: https://forum.paradoxplaza.com/forum/index.php?threads/tool-extract-family-trees-from-your-save-and-browse-personal-title-histories.1120670/.  I probably need you to upload your save and tell me what mods you are using.
 
 
 ck2\_title\_history:
@@ -66,7 +66,7 @@ Start by typing "help" to get a help message telling you what commands are
 recognized.  You should then be able to use the browser to browse title
 histories.
 
-Report any problems to the Paradox Interactive Forums thread: https://forum.paradoxplaza.com/forum/index.php?threads/tool-script-to-export-family-trees-from-your-savefile.1037854/.  I probably need you to upload your save and tell me what
+Report any problems to the Paradox Interactive Forums thread: https://forum.paradoxplaza.com/forum/index.php?threads/tool-extract-family-trees-from-your-save-and-browse-personal-title-histories.1120670/.  I probably need you to upload your save and tell me what
 mods you are using, and what you were doing when the problem happened.
 
 ----------------------------------------------------------------------
