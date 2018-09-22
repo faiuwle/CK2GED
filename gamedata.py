@@ -4,6 +4,7 @@ import os.path
 from os import listdir
 from string import digits, whitespace
 from datatypes import *
+import settings
 
 class InstallDirNotFoundError(Exception):
     pass
@@ -599,9 +600,17 @@ class GameData(object):
                     self.misc_localization[value] = ''
 
                 if len(keys) > 1 and keys[-1] == 'controls_religion':
-                    self.title_map[keys[-2]].religion_head = True
+                    self.title_map[keys[-2]].religious_head = True
 
-                if (value == '' and keys[-1].startswith('b_')  \
+                if (len(keys) > 1 and keys[-1] == 'holy_order' 
+                    and value == 'yes'):
+                    self.title_map[keys[-2]].mercenary = True
+
+                if (len(keys) > 1 and keys[-1] == 'mercenary'
+                    and value == 'yes'):
+                    self.title_map[keys[-2]].mercenary = True
+
+                if (value == '' and keys[-1].startswith('b_')
                     and keys[-1] not in self.title_map):
                     title = Title()
                     title.id = keys[-1]
@@ -1015,15 +1024,10 @@ class GameData(object):
                     and keys[4] == 'holder'):
                     parsed_date = self.parse_date(keys[3])
 
-                    # We're still on the same date as last iteration
-                    if (keys[1] == title_id and type(parsed_date) == Date 
-                        and type(title_date) == Date 
-                        and parsed_date == title_date and len(keys) == 6):
-                        if (keys[5] in ['character', 'who']
-                            and self.is_integer(value)):
-                            title_holder = int(value)
-                        elif keys[5] == 'type':
-                            succession_type = value
+                    # We're still on the same holder block as last iteration
+                    if (keys[1] == title_id and len(keys) == 6 
+                        and keys[5] == 'type'):
+                        succession_type = value
                         continue
 
                     # Past this point, we have come to a new date, so we need
@@ -1038,7 +1042,7 @@ class GameData(object):
                         ownership.lose_type = succession_type
                         ownership.to_whom = title_holder
 
-                    # Not only a new date, but also a new title - finalize the
+                    # Not only a new block, but also a new title - finalize the
                     # last holder of the previous title
                     if (title_id != '' and title_id != keys[1]
                         and type(title_date) == Date
@@ -1059,7 +1063,7 @@ class GameData(object):
                         title.assign_regnal_numbers(self.character_map, 
                                                     self.name_map)
 
-                    # Otherwise, this is just the next date in the same title
+                    # Otherwise, this is just the next block in the same title
                     elif (title_id != '' and type(parsed_date) == Date
                           and type(title_date) == Date
                           and title_holder in self.character_map):
@@ -1111,8 +1115,6 @@ class GameData(object):
                         title_holder = int(value)
                         if title_holder == 0:
                             prev_holder = 0
-                    elif len(keys) == 6 and keys[5] == 'type':
-                        succession_type = value
 
         # Record information for the last title holder
         if title_id != '' and prev_holder in self.character_map:
@@ -1151,6 +1153,7 @@ class GameData(object):
             print('4) Your dynasty members, and their spouses and parents') 
             print('   (for very large dynasties)')
             print('Enter a number: ', end=' ')
+            sys.stdout.flush()
             mode = sys.stdin.readline().strip()
             try:
                 mode = int(mode)
@@ -1258,3 +1261,54 @@ class GameData(object):
             self.character_map[s].mark = True
         for c in character.children:
             self.mark_character_and_family(c, real_fathers)
+
+
+def prepare_game_data():
+    game_data = GameData()
+
+    try:
+        game_data.initialize(settings.ck2_install_dir, settings.mod_dir)
+    except InstallDirNotFoundError:
+        print('Did not find CK2 install dir:', settings.ck2_install_dir)
+        print('Please modify settings.py to use the correct path.')
+        sys.stdin.readline()
+        sys.exit()
+    except Exception:
+        if settings.debug:
+            raise
+        else:
+            print('Error initializing game data.')
+            print('Check that the locations in settings.py are correct.')
+            print('Otherwise please post to the Paradox Interactive Forums'
+		  ' thread, noting any mods you are using.')
+            sys.stdin.readline()
+            sys.exit()
+
+    print('\nPlease enter the name of your save file, without the .ck2: ', 
+	  end=' ')
+    filename = sys.stdin.readline().strip()
+    if filename.endswith('.ck2'):
+        filename = filename[:-4]
+
+    print('\n')
+
+    if not os.path.exists(filename + '.ck2'):
+        print('Could not find save file: ', filename + '.ck2')
+        sys.stdin.readline()
+        sys.exit()
+
+    try:
+        game_data.read_save(filename + '.ck2', settings.generate_titles)
+    except Exception:
+        if settings.debug:
+            raise
+        else:
+            print('Error reading save file.')
+            print('Please ensure that your save is UNENCRYPTED.')
+            print('If that is not the problem, please post to the Paradox'
+		          ' Interactive Forums thread, upload your save and note any'
+		          ' mods you are using.')
+            sys.stdin.readline()
+            sys.exit()
+
+    return game_data, filename

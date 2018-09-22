@@ -11,6 +11,44 @@ DUKE = 2
 KING = 1
 EMPEROR = 0
 
+asciify_dict = {
+    'à': 'a',
+    'á': 'a',
+    'â': 'a',
+    'ã': 'a',
+    'ä': 'a',
+    'å': 'a',
+    'æ': 'ae',
+    'ç': 'c',
+    'è': 'e',
+    'é': 'e',
+    'ê': 'e',
+    'ë': 'e',
+    'ì': 'i',
+    'í': 'i',
+    'î': 'i',
+    'ï': 'i',
+    'ð': 'dh',
+    'ñ': 'n',
+    'ò': 'o',
+    'ó': 'o',
+    'ô': 'o',
+    'õ': 'o',
+    'ö': 'o',
+    'ø': 'o',
+    'ù': 'u',
+    'ú': 'u',
+    'û': 'u',
+    'ü': 'u',
+    'ý': 'y',
+    'þ': 'th',
+    'ÿ': 'y',
+    'ß': 'ss',
+    'š': 's',
+    'œ': 'oe',
+    'ž': 'z'
+}
+
 class Date(object):
     gedcom_month_name = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP',
                          'OCT', 'NOV','DEC']
@@ -174,6 +212,7 @@ class Title(object):
         self.viceroyalty = False
         self.independent = True
         self.religious_head = False
+        self.mercenary = False
         self.holders = []
 
     def __lt__(self, other):
@@ -519,30 +558,31 @@ class TitleHistory(object):
         if rank >= BARON:
             return ''
 
-        if self.government == 'temple':
-            culture_religion = self.religion
-        elif cultural_titles:
-            culture_religion = self.culture
-        else:
-            culture_religion = Culture()
-
         if self.government in TitleHistory.realm_names:
             r = TitleHistory.realm_names[self.government][rank]
 
-            if culture_religion.id in r:
-                return r[culture_religion.id]
-            elif culture_religion.group in r:
-                return r[culture_religion.group]
+            if self.religion.id in r:
+                return r[self.religion.id]
+            elif self.religion.group in r:
+                return r[self.religion.group]
+            elif cultural_titles and self.culture.id in r:
+                return r[self.culture.id]
+            elif cultural_titles and self.culture.group in r:
+                return r[self.culture.group]
             elif '' in r:
                 return r['']
 
         if '' in TitleHistory.realm_names:
             r = TitleHistory.realm_names[''][rank]
 
-            if culture_religion.id in r:
-                return r[culture_religion.id]
-            elif culture_religion.group in r:
-                return r[culture_religion.group]
+            if self.religion.id in r:
+                return r[self.religion.id]
+            elif self.religion.group in r:
+                return r[self.religion.group]
+            elif cultural_titles and self.culture.id in r:
+                return r[self.culture.id]
+            elif cultural_titles and self.culture.group in r:
+                return r[self.culture.group]
             elif '' in r:
                 return r['']
 
@@ -557,7 +597,7 @@ class TitleHistory(object):
         else:
             other_text = other.birth_name + ' ' + other.dynasty_name
         if other.id > 0:
-            other_text += ' (' + str(other.id) + ')'
+            other_text += ' [' + str(other.id) + ']'
 
         title_text = ''
         titles.sort()
@@ -569,7 +609,11 @@ class TitleHistory(object):
                 elif rank == KING:
                     rank = VICEKING
 
-            realm_name = self.get_realm_name(rank, cultural_titles)
+            if not title.religious_head and not title.mercenary:
+                realm_name = self.get_realm_name(rank, cultural_titles)
+            else:
+                realm_name = ''
+
             title_text += '' if len(realm_name) == 0 else realm_name + ' '
             if self.culture.id in title.cultural_names and cultural_titles:
                 title_text += title.cultural_names[self.culture.id]
@@ -621,7 +665,8 @@ class TitleHistory(object):
         string_map = defaultdict(list)
         for (y, m, d) in tuple_map:
             event_list = tuple_map[(y, m, d)]
-            event_list = sorted(event_list, key=lambda x: (x[0], x[1], x[2]))
+            event_list = sorted(event_list, 
+                key=lambda x: (not x[0], x[1], x[2]))
             for k, g in groupby(event_list, lambda x: (x[0], x[1], x[2])):
                 titles = [title_map[x[3]] for x in g]
                 if k[1] in character_map:
@@ -707,18 +752,26 @@ class Character(object):
     def get_years_of_rule(self, title_map):
         return self.title_history.get_years_of_rule(title_map)
 
-    def get_title_history(self, character_map, title_map):
+    def get_title_history(self, character_map, title_map, cultural_titles,
+                          show_tags):
         return self.title_history.generate_title_history(
-            character_map, title_map
+            character_map, title_map, cultural_titles, show_tags
         )
-    def matches_search(tokens):
+    @staticmethod
+    def asciify(text):
+        new_text = ''
+        for c in text:
+            new_text += asciify_dict[c] if c in asciify_dict else c
+        return new_text
+    def matches_search(self, tokens):
         titles = [t for t in self.title_history.titles 
                   if len([o for o in self.title_history.titles[t]
                           if not o.exclude_from_history]) > 0]
         if len(titles) == 0:
             return False
 
+        tokens = set([self.asciify(t) for t in tokens])
         searchable = [self.birth_name, self.regnal_name, self.dynasty_name]
         searchable += titles
-        searchable = set(searchable)
+        searchable = set([self.asciify(s.lower()) for s in searchable])
         return tokens.issubset(searchable)
