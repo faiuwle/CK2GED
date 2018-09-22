@@ -1,5 +1,5 @@
 import settings
-from gamedata import Date
+from datatypes import Date
 import sys
 
 class Family(object):
