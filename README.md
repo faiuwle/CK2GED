@@ -57,7 +57,7 @@ Place copies of the following files into the same directory:
   - the .ck2 file you wish to browse
 
 Open settings.py and make sure that ck2\_install\_dir and mod\_dir are set to
-your CK@ install directory and the directory where you install mods,
+your CKII install directory and the directory where you install mods,
 respectively.  The other options do no matter.
 
 Run ck2\_title\_history, and follow the prompts.  When finished, it will launch
