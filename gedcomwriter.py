@@ -142,7 +142,7 @@ class GedcomWriter(object):
     def write_gedcom(self, filename):
         print('### Writing .ged file...', end=' ')
 
-        with open(filename, 'w') as file:
+        with open(filename, 'w', encoding='utf-8') as file:
             file.write('0 HEAD\n1 FILE ' + filename + '\n1 GEDC\n2 VERS 5.5\n')
             file.write('2 FORM LINEAGE-LINKED\n1 CHAR UTF-8')
 
