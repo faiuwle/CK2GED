@@ -47,6 +47,7 @@ class TitleHistoryBrowser(object):
               '    the current position, if you were, say, previously looking\n'
               '    at a title history.\n'
               '\n(Press enter to continue)')
+        sys.stdout.flush()
         sys.stdin.readline()
         print('You can search for characters by typing their birth name,\n'
               'their regnal name, their dynasty name, or the id/tag of any\n'
@@ -77,6 +78,7 @@ class TitleHistoryBrowser(object):
               'Note that title histories prior to game start are missing a\n'
               'lot of information and this tool is not very good at figuring\n'
               'it out.')
+        sys.stdout.flush()
 
     def show_title_history(self, character):
         lines = character.get_title_history(self.character_map, self.title_map,
@@ -96,6 +98,7 @@ class TitleHistoryBrowser(object):
             sys.stdin.readline()
         if len(lines) > 0:
             print('\n'.join(lines))
+            sys.stdout.flush()
 
     def show_search_results(self):
         if self.current_query == '':
@@ -132,6 +135,8 @@ class TitleHistoryBrowser(object):
                 text_list.append('    ' + text)
                 text_list[0] = text_list[0][4:]
                 print('\n'.join(text_list))
+                
+        sys.stdout.flush()
 
 
     def skip_to_date(self, date):

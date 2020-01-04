@@ -25,6 +25,7 @@ def main():
             print('Error generating GEDCOM family information.')
             print('Please post to the Paradox Interactive Forums thread,'
 		  ' upload your save and note any mods you are using.')
+            sys.stdout.flush()
             sys.stdin.readline()
             sys.exit()
 
@@ -37,6 +38,7 @@ def main():
             print('Error writing GEDCOM file.')
             print('Please post to the Paradox Interactive Forums thread,'
 		  ' upload your save and note any mods you are using.')
+            sys.stdout.flush()
             sys.stdin.readline()
             sys.exit()
 

@@ -17,4 +17,4 @@ real_fathers = False
 generate_titles = True
 
 # For development use only
-debug = False
+debug = True

@@ -53,6 +53,7 @@ class GameFiles(object):
             for i, m in enumerate(mod_names):
                 print(i + 1, m)
             print('Mods in use (press enter for no mods): ', end=' ')
+            sys.stdout.flush()
 
             try:
                 mod_numbers = sys.stdin.readline().strip().split()
@@ -1170,6 +1171,8 @@ class GameData(object):
             print('Ok. Generating standard dynasty tree.\n')
         else:
             print('Ok. Generating abbreviated dynasty tree.\n')
+            
+        sys.stdout.flush()
 
         if self.player_id not in self.character_map and mode != 1:
             print('Your game appears to have been saved in observer mode.'
@@ -1286,6 +1289,7 @@ def prepare_game_data():
 
     print('\nPlease enter the name of your save file, without the .ck2: ', 
 	  end=' ')
+    sys.stdout.flush()
     filename = sys.stdin.readline().strip()
     if filename.endswith('.ck2'):
         filename = filename[:-4]

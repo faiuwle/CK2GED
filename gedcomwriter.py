@@ -23,6 +23,7 @@ class GedcomWriter(object):
 
     def generate_gedcom_families(self):
         print('### Generating GEDCOM family information...', end=' ')
+        sys.stdout.flush()
 
         family_id = 1
 
@@ -140,11 +141,17 @@ class GedcomWriter(object):
         print('Done. ###')
 
     def write_gedcom(self, filename):
-        print('### Writing .ged file...', end=' ')
+        print('### Writing .ged file with {0} characters and {1} '
+              'families...'.format(len(self.gedcom_map), len(self.family_map)), end='\n')
+        sys.stdout.flush()
 
         with open(filename, 'w', encoding='utf-8') as file:
             file.write('0 HEAD\n1 FILE ' + filename + '\n1 GEDC\n2 VERS 5.5\n')
             file.write('2 FORM LINEAGE-LINKED\n1 CHAR UTF-8')
+            
+            total_entries = len(self.gedcom_map) + len(self.family_map)
+            entries_per_increment = total_entries // 80 + 1
+            entries_until_progress = entries_per_increment
 
             for g in self.gedcom_map:
                 line = ''
@@ -208,6 +215,12 @@ class GedcomWriter(object):
                     line += '\n1 FAMC @F' + str(character.FAMC) + '@'
 
                 file.write(line)
+                
+                entries_until_progress -= 1
+                if entries_until_progress == 0:
+                    print('=', end='')
+                    sys.stdout.flush()
+                    entries_until_progress = entries_per_increment
 
             for f in self.family_map:
                 line = ''
@@ -232,7 +245,14 @@ class GedcomWriter(object):
                         line += '\n1 CHIL @I' + str(character.GEDCOM_id) + '@'
 
                 file.write(line)
+                
+                entries_until_progress -= 1
+                if entries_until_progress == 0:
+                    print('=', end='')
+                    sys.stdout.flush()
+                    entries_until_progress = entries_per_increment
 
             file.close()
 
-        print('Done. ###')
+        print('\nDone. ###')
+        sys.stdout.flush()

@@ -412,7 +412,7 @@ class TitleHistory(object):
             else:
                 rank = NONE
 
-            s = self.get_rank(rank) + ' ' + name
+            s = self.get_rank(rank) + ' ' + self.name
 
             if self.nickname != '':
                 s += ' ' + self.nickname
