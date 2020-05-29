@@ -252,6 +252,8 @@ class GedcomWriter(object):
                     sys.stdout.flush()
                     entries_until_progress = entries_per_increment
 
+            file.write('\n0 TRLR')
+            
             file.close()
 
         print('\nDone. ###')
